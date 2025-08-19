@@ -14,22 +14,25 @@ open class LlibreViewModel : ViewModel() {
 
     private val repository = LlibreRepository()
 
+    // Estat del formulari (llibre actual o en creació)
     private val _llibre = MutableStateFlow<Llibre?>(null)
     val llibre: StateFlow<Llibre?> get() = _llibre
 
+    // Missatges i càrrega
     private val _missatge = MutableStateFlow<String?>(null)
     val missatge: StateFlow<String?> = _missatge
 
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading
 
+    // Llista de llibres
     private val _totsElsLlibres = MutableStateFlow<List<Llibre>>(emptyList())
     open val totsElsLlibres: StateFlow<List<Llibre>> get() = _totsElsLlibres
 
     fun netejarMissatge() { _missatge.value = null }
 
     fun netejarForm() {
-        _llibre.value = Llibre()        // Així deixem el formulari en blanc
+        _llibre.value = Llibre()              // deixa el formulari en blanc
         _missatge.value = "Formulari netejat"
     }
 
@@ -39,6 +42,7 @@ open class LlibreViewModel : ViewModel() {
 
     open fun carregaTots() {
         viewModelScope.launch {
+            // Assumim que el repositori té getTotsElsLlibres()
             _totsElsLlibres.value = repository.getTotsElsLlibres()
         }
     }
@@ -48,11 +52,8 @@ open class LlibreViewModel : ViewModel() {
             _loading.value = true
             repository.fetchLlibreByIsbn(isbn).fold(
                 onSuccess = { res ->
-                    if (res == null) {
-                        _missatge.value = "No s'ha trobat cap llibre amb aquest ISBN"
-                    } else {
-                        _llibre.value = res
-                    }
+                    if (res == null) _missatge.value = "No s'ha trobat cap llibre amb aquest ISBN"
+                    else _llibre.value = res
                 },
                 onFailure = { e ->
                     _missatge.value = when (e) {
@@ -72,12 +73,12 @@ open class LlibreViewModel : ViewModel() {
             repository.createLlibre(llibre).fold(
                 onSuccess = {
                     _missatge.value = "Llibre desat correctament"
-                    carregaTots() // Refrescar la llista
+                    carregaTots()          // refresca la llista
                     onSuccess()
                 },
                 onFailure = { e ->
                     _missatge.value = when (e) {
-                        is IllegalStateException -> e.message // 409 ISBN duplicat
+                        is IllegalStateException -> e.message               // p.ex. 409 ISBN duplicat
                         is IOException -> "Sense connexió. No s'ha pogut desar."
                         is HttpException -> "Error del servidor en desar (${e.code()})."
                         else -> "No s'ha pogut desar el llibre."
@@ -92,6 +93,7 @@ open class LlibreViewModel : ViewModel() {
         _llibre.value = modificar(_llibre.value)
     }
 
+    // Retorna Job perquè pugui ser sobreescrit als tests
     open fun eliminarLlibre(l: Llibre) = viewModelScope.launch {
         val id = l.id ?: run {
             _missatge.value = "Aquest llibre no té ID (no es pot eliminar)"
@@ -101,7 +103,7 @@ open class LlibreViewModel : ViewModel() {
         repository.esborrarLlibre(id).fold(
             onSuccess = {
                 _missatge.value = "Llibre eliminat"
-                carregaTots()                      // 👈 refresca la llista
+                carregaTots()
             },
             onFailure = { e ->
                 _missatge.value = when (e) {
@@ -118,4 +120,39 @@ open class LlibreViewModel : ViewModel() {
         _llibre.value = llibre
     }
 
+    // ---------- Estat per al flux d’escàner/edició ----------
+    private val _llibreEnEdicio = MutableStateFlow<Llibre?>(null)
+    val llibreEnEdicio: StateFlow<Llibre?> = _llibreEnEdicio
+
+    /** Prepara un nou llibre a partir d’un ISBN escanejat. */
+    fun prepararNouLlibreAmbIsbn(isbn: String) {
+        _llibreEnEdicio.value = Llibre(
+            id = null, titol = null, autor = null, isbn = isbn, imatgeUrl = null
+        )
+    }
+
+    /** (Opcional) Enriquir camps titol/autor/imatge usant la crida existent del repositori. */
+    fun enriquirLlibrePerIsbn() {
+        val actual = _llibreEnEdicio.value ?: return
+        val isbn = actual.isbn ?: return
+        viewModelScope.launch {
+            repository.fetchLlibreByIsbn(isbn).fold(
+                onSuccess = { enrich ->
+                    if (enrich != null) {
+                        _llibreEnEdicio.value = actual.copy(
+                            titol = enrich.titol ?: actual.titol,
+                            autor = enrich.autor ?: actual.autor,
+                            imatgeUrl = enrich.imatgeUrl ?: actual.imatgeUrl
+                        )
+                    }
+                },
+                onFailure = {
+                    // Si falla, simplement no canviem res; opcionalment pots fer:
+                    // _missatge.value = "No s'ha pogut enriquir dades per ISBN"
+                }
+            )
+        }
+    }
+
+    fun netejarEdicio() { _llibreEnEdicio.value = null }
 }

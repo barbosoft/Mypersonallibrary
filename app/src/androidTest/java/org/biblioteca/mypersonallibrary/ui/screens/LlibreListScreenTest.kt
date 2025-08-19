@@ -1,13 +1,16 @@
 package org.biblioteca.mypersonallibrary.ui.screens
 
-import androidx.compose.ui.test.*
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.biblioteca.mypersonallibrary.data.Llibre
 import org.biblioteca.mypersonallibrary.domain.Ordre
-import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -26,24 +29,24 @@ class LlibreListScreenTest {
 
     @Test
     fun cerca_filtraLlista() {
-        val fakeViewModel = FakeLlibreViewModel(llibresExemple)
-
         composeTestRule.setContent {
-            LlibreListScreen(
-                viewModel = fakeViewModel,
+            LlibreListScreenTestable(
+                llibres = llibresExemple,
+                loading = false,
+                missatge = null,
+                onRefresh = {},
                 onEdit = {},
+                onEliminar = {},
                 onNouLlibre = {}
             )
         }
 
-        // Escriure "Kotlin" al camp de cerca
-        composeTestRule.onNodeWithText("Cerca").performTextInput("Kotlin")
+        // Escriure al camp de cerca (testTag robust)
+        composeTestRule.onNodeWithTag("searchField").performTextInput("Kotlin")
 
-        // Comprovar que només apareix el llibre "Kotlin en acció"
-        composeTestRule.onAllNodesWithText("Kotlin en acció")
-            .assertCountEquals(1)
-        composeTestRule.onAllNodesWithText("Android Avançat")
-            .assertCountEquals(0)
+        // S'ha d'haver filtrat a 1 targeta i contenir el llibre esperat
+        composeTestRule.onAllNodesWithTag("bookCard").assertCountEquals(1)
+        composeTestRule.onNodeWithText("Kotlin en acció").assertExists()
     }
 
     @Test
@@ -60,33 +63,38 @@ class LlibreListScreenTest {
             )
         }
 
-        // Filtra
-        composeTestRule.onNodeWithText("Cerca").performTextInput("Kotlin")
-        // S’ha d’haver filtrat a 1 targeta
+        // Filtra → 1 card
+        composeTestRule.onNodeWithTag("searchField").performTextInput("Kotlin")
         composeTestRule.onAllNodesWithTag("bookCard").assertCountEquals(1)
 
-        // Neteja
+        // Neteja → recupera la mida original
         composeTestRule.onNodeWithContentDescription("Neteja cerca").performClick()
-        // Torna a la mida original (3 targetes)
         composeTestRule.onAllNodesWithTag("bookCard").assertCountEquals(llibresExemple.size)
     }
 
     @Test
     fun canviOrdre_reordenaLlista() {
-        val fakeViewModel = FakeLlibreViewModel(llibresExemple)
-
         composeTestRule.setContent {
-            LlibreListScreen(
-                viewModel = fakeViewModel,
+            LlibreListScreenTestable(
+                llibres = llibresExemple,
+                loading = false,
+                missatge = null,
+                onRefresh = {},
                 onEdit = {},
+                onEliminar = {},
                 onNouLlibre = {}
             )
         }
 
-        // Obrir desplegable "Ordre" i triar ISBN
-        composeTestRule.onNodeWithText("Ordre").performClick()
-        composeTestRule.onNodeWithText(Ordre.ISBN.label).performClick()
+        // Obrir desplegable "Ordre" i seleccionar "Títol"
+        composeTestRule.onNodeWithTag("orderDropdown").performClick()
+        composeTestRule.onNodeWithText(Ordre.TITOL.label).performClick()
 
-        // Aquí pots afegir asserts sobre la nova disposició si cal
+        // Smoke check: segueixen els 3 ítems (la interacció no ha fallat)
+        composeTestRule.onAllNodesWithTag("bookCard").assertCountEquals(llibresExemple.size)
+
+        // (Opcional) Per assertar l'ordre estrictament:
+        // - Posa un testTag al Text del títol dins LlibreItem (p. ex. "bookTitle-<index>" o "bookTitle")
+        // - Comprova que el primer card conté "Android Avançat" (alfabètic per títol)
     }
 }

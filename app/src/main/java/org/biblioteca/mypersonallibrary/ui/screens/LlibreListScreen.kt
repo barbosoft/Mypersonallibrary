@@ -1,16 +1,28 @@
 package org.biblioteca.mypersonallibrary.ui.screens
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.google.accompanist.swiperefresh.SwipeRefresh
-import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
-import org.biblioteca.mypersonallibrary.domain.*
-import org.biblioteca.mypersonallibrary.ui.components.*
+import androidx.compose.foundation.lazy.rememberLazyListState
+import org.biblioteca.mypersonallibrary.domain.Ordre
+import org.biblioteca.mypersonallibrary.domain.filtreLlibres
+import org.biblioteca.mypersonallibrary.domain.ordenaLlibres
+import org.biblioteca.mypersonallibrary.ui.components.BooksList
+import org.biblioteca.mypersonallibrary.ui.components.OrderDropdown
+import org.biblioteca.mypersonallibrary.ui.components.SearchField
 import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -25,9 +37,7 @@ fun LlibreListScreen(
     val missatge by viewModel.missatge.collectAsState()
 
     val snackbar = remember { SnackbarHostState() }
-    LaunchedEffect(missatge) {
-        missatge?.let { snackbar.showSnackbar(it); viewModel.netejarMissatge() }
-    }
+    LaunchedEffect(missatge) { missatge?.let { snackbar.showSnackbar(it); viewModel.netejarMissatge() } }
 
     var query by rememberSaveable { mutableStateOf("") }
     var ordre by rememberSaveable { mutableStateOf(Ordre.AUTOR) }
@@ -36,16 +46,29 @@ fun LlibreListScreen(
         ordenaLlibres(filtreLlibres(llibres, query), ordre)
     }
 
+    val pullState = rememberPullToRefreshState()
+    val listState = rememberLazyListState()
+
+    LaunchedEffect(ordre, query) {
+        if (listState.firstVisibleItemIndex != 0 || listState.firstVisibleItemScrollOffset != 0) {
+            listState.animateScrollToItem(0)
+        }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = { CenterAlignedTopAppBar(title = { Text("Biblioteca") }) },
         floatingActionButton = { FloatingActionButton(onClick = onNouLlibre) { Text("+") } }
     ) { padding ->
 
-        Column(Modifier.padding(padding).padding(16.dp)) {
-
+        Column(
+            Modifier
+                .fillMaxSize()                 // ✅ BOUNDED HEIGHT
+                .padding(padding)
+                .padding(16.dp)
+        ) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -62,17 +85,24 @@ fun LlibreListScreen(
 
             Spacer(Modifier.height(8.dp))
 
-            SwipeRefresh(
-                state = rememberSwipeRefreshState(isRefreshing = loading),
-                onRefresh = { viewModel.carregaTots() }
+            PullToRefreshBox(
+                isRefreshing = loading,
+                onRefresh = { viewModel.carregaTots() },
+                state = pullState,
+                modifier = Modifier.fillMaxSize()   // ✅ també bounded
             ) {
                 if (llistaMostrada.isEmpty()) {
-                    EmptyState(query, modifier = Modifier.padding(16.dp))
+                    Text(
+                        text = if (query.isBlank()) "No hi ha llibres." else "Cap resultat per \"$query\"",
+                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.padding(16.dp)
+                    )
                 } else {
                     BooksList(
                         llibres = llistaMostrada,
                         onEdit = { l -> viewModel.obrirLlibre(l); onEdit() },
-                        onEliminar = { l -> viewModel.eliminarLlibre(l) }
+                        onEliminar = { l -> viewModel.eliminarLlibre(l) },
+                        listState = listState
                     )
                 }
             }

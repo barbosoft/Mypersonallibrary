@@ -1,11 +1,27 @@
-* text=auto eol=lf
+# Normalitza textos i deixa que Git gestioni EOL de forma segura
+* text=auto
 
-# Mantén els scripts amb LF
-*.sh text eol=lf
-gradlew text eol=lf
+# Fitxers de codi i configuració (LF al repo)
+*.kt        text
+*.kts       text
+*.java      text
+*.xml       text
+*.gradle    text
+*.md        text
+*.properties text
 
-# Imatges binàries
+# Scripts que han d'anar amb LF (Unix)
+*.sh        text eol=lf
+gradlew     text eol=lf
+
+# Scripts de Windows: necessiten CRLF
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+
+# Binàries
 *.png binary
 *.jpg binary
 *.jpeg binary
 *.webp binary
+*.keystore binary
+*.jks binary
