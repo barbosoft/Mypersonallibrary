@@ -2,8 +2,7 @@
 
 Aplicació Android per gestionar una biblioteca personal.
 
-[![Android CI](https://github.com/USUARI/REPO/actions/workflows/android-ci.yml/badge.svg)](https://github.com/USUARI/REPO/actions/workflows/android-ci.yml)
-> Substitueix **USUARI/REPO** per l’owner i el nom del teu repositori.
+[![Android CI](https://github.com/barbosoft/Mypersonallibrary/actions/workflows/android-ci.yml/badge.svg)](https://github.com/barbosoft/Mypersonallibrary/actions/workflows/android-ci.yml)
 
 ## ✨ Funcionalitats
 - Llista de llibres amb **cerca** i **ordre** (Títol / Autor / ISBN).
@@ -19,20 +18,20 @@ Kotlin · Jetpack **Compose** · **Material3** · **Navigation** · **ViewModel/
 **CameraX**, **ML Kit Barcode** · **Retrofit** · **Coil**
 
 ## 🗂 Estructura
+```text
 org.biblioteca.mypersonallibrary
-├─ data/ # DTOs, Retrofit, repositori
-├─ domain/ # Filtrat/ordre de llibres
-├─ navigation/ # Rutes (sealed class Screen)
-├─ scanner/ # ScanActivity (CameraX + ML Kit)
-├─ ui/
-│ ├─ components/ # SearchField, OrderDropdown, BooksList, ...
-│ └─ screens/ # LlibreListScreen, LlibreFormScreen, ...
-└─ viewModel/ # LlibreViewModel
+ ├─ data/                # DTOs, Retrofit, repositori
+ ├─ domain/              # Filtrat/ordre de llibres
+ ├─ navigation/          # Rutes (sealed class Screen)
+ ├─ scanner/             # ScanActivity (CameraX + ML Kit)
+ ├─ ui/
+ │   ├─ components/      # SearchField, OrderDropdown, BooksList, ...
+ │   └─ screens/         # LlibreListScreen, LlibreFormScreen, ...
+ └─ viewModel/           # LlibreViewModel
 
+▶️ Execució local
 
-## ▶️ Execució local
-Requisits: Android Studio Jellyfish o superior i **JDK 17**.
-```bash
+Requisits: Android Studio Jellyfish o superior i JDK 17.
 ./gradlew assembleDebug
 adb install app/build/outputs/apk/debug/app-debug.apk
 
