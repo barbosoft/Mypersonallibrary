@@ -1,127 +1,87 @@
 package org.biblioteca.mypersonallibrary
 
-import android.Manifest
 import android.app.Activity
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.os.Bundle
-import android.util.Log
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.core.content.ContextCompat
+import androidx.compose.runtime.Composable
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.google.zxing.integration.android.IntentIntegrator
-import com.journeyapps.barcodescanner.CaptureActivity
+import org.biblioteca.mypersonallibrary.data.Llibre
 import org.biblioteca.mypersonallibrary.navigation.Screen
+import org.biblioteca.mypersonallibrary.scanner.ScanActivity
 import org.biblioteca.mypersonallibrary.ui.screens.LlibreFormScreen
 import org.biblioteca.mypersonallibrary.ui.screens.LlibreListScreen
 import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
 
-
 class MainActivity : ComponentActivity() {
 
-    private val viewModel: LlibreViewModel by viewModels()
+    private lateinit var vm: LlibreViewModel
+    private var navController: NavHostController? = null
 
-    // Demanar permís de CÀMERA en runtime
-    private val requestCameraPermission = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted) {
-            launchIsbnScanner()
-        } else {
-            Toast.makeText(this, "Cal el permís de càmera per escanejar", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun startScanWithPermission() {
-        val granted = ContextCompat.checkSelfPermission(
-            this, Manifest.permission.CAMERA
-        ) == PackageManager.PERMISSION_GRANTED
-        if (granted) launchIsbnScanner()
-        else requestCameraPermission.launch(Manifest.permission.CAMERA)
-    }
-
-    // Rebre el resultat de l’escaneig (Activity Result API)
     private val scanLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
-        val parsed = com.google.zxing.integration.android.IntentIntegrator
-            .parseActivityResult(result.resultCode, result.data)
-        if (parsed != null && parsed.contents != null && result.resultCode == Activity.RESULT_OK) {
-            val isbn = parsed.contents
-            Log.d("MainActivity", "ISBN escanejat: $isbn")
-            viewModel.buscarPerIsbn(isbn)
+        if (result.resultCode == Activity.RESULT_OK) {
+            val text = result.data?.getStringExtra(ScanActivity.EXTRA_SCAN_RESULT)
+            if (!text.isNullOrBlank()) {
+                vm.prepararNouLlibreAmbIsbn(text)
+                vm.enriquirLlibrePerIsbn() // opcional
+                // ✅ Passa la ROUTE (String), no l’objecte Screen
+                navController?.navigate(Screen.LlibreForm.route)
+            }
         }
     }
 
-    // Obrir directament el lector de ZXing (sense activitat pròpia)
-    private fun launchIsbnScanner() {
-        val integrator = IntentIntegrator(this).apply {
-            // ISBN sol ser EAN-13 (1D)
-            setDesiredBarcodeFormats(IntentIntegrator.ONE_D_CODE_TYPES)
-            setPrompt("Escaneja l'ISBN")
-            setBeepEnabled(true)
-            setOrientationLocked(true)
-            setCaptureActivity(CaptureActivity::class.java)
-        }
-        val intent: Intent = integrator.createScanIntent()
-        scanLauncher.launch(intent)
+    private fun obrirEscaner() {
+        scanLauncher.launch(Intent(this, ScanActivity::class.java))
     }
 
-    @ExperimentalMaterial3Api
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setContent {
-
-            val navController = rememberNavController()
+            vm = viewModel()
+            val nav = rememberNavController()
+            navController = nav
 
             MaterialTheme {
-                NavHost(
-                    navController = navController,
-                    startDestination = Screen.Llistat.route
-                ) {
-                    composable(Screen.Llistat.route) {
-                        LlibreListScreen (
-                            viewModel= viewModel,
-                            onEdit = { navController.navigate(Screen.Formulari.route) },
-                            onNouLlibre = {
-                                viewModel.netejarForm()
-                                navController.navigate(Screen.Formulari.route)
-                            }
-                        )
-
-                    }
-
-                    composable(Screen.Formulari.route) {
-                        LlibreFormScreen(
-                            viewModel = viewModel,
-                            onSave = { navController.popBackStack() },
-                            onScanIsbn = { startScanWithPermission() }
-                        )
-                    }
-
-
-                }
-
-                /*
-                LlibreFormScreen(
-                    viewModel = viewModel,
-                    onSave = {
-                        Toast.makeText(this, "Llibre desat!", Toast.LENGTH_SHORT).show()
-                    },
-                    onScanIsbn = { startScanWithPermission() } // IMPORTANT: demana permís abans
-                )
-
-                 */
+                AppNavHost(nav, vm, ::obrirEscaner)
             }
+        }
+    }
+}
+
+@Composable
+private fun AppNavHost(
+    nav: NavHostController,
+    vm: LlibreViewModel,
+    obrirEscaner: () -> Unit
+) {
+    NavHost(navController = nav, startDestination = Screen.LlibreList.route) {
+
+        composable(Screen.LlibreList.route) {
+            LlibreListScreen(
+                viewModel = vm,
+                onEdit = { nav.navigate(Screen.LlibreForm.route) },
+                onNouLlibre = {
+                    vm.obrirLlibre(Llibre()) // obre formulari en blanc
+                    nav.navigate(Screen.LlibreForm.route)
+                }
+            )
+        }
+
+        composable(Screen.LlibreForm.route) {
+            LlibreFormScreen(
+                viewModel = vm,
+                onSave = { nav.popBackStack() },
+                onScanIsbn = { obrirEscaner() }
+            )
         }
     }
 }

@@ -29,16 +29,27 @@ import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LlibreFormScreen(viewModel: LlibreViewModel,
-                     onSave: () -> Unit,
-                     onScanIsbn: () -> Unit
+fun LlibreFormScreen(
+    viewModel: LlibreViewModel,
+    onSave: () -> Unit,
+    onScanIsbn: () -> Unit
 ) {
+    // Estat “clàssic” del formulari (el que ja tenies)
     val llibre by viewModel.llibre.collectAsState()
+
+    // Estat nou: llibre en edició (preparat pel flux d’escàner)
+    // (Assegura’t d’haver afegit llibreEnEdicio al ViewModel)
+    val llibreEnEdicio by viewModel.llibreEnEdicio.collectAsState()
 
     val missatge by viewModel.missatge.collectAsState()
     val loading by viewModel.loading.collectAsState()
 
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Si arriba un llibre en edició (p.ex. ISBN escanejat), el fem servir com a base del formulari
+    LaunchedEffect(llibreEnEdicio) {
+        llibreEnEdicio?.let { vmLlibre -> viewModel.obrirLlibre(vmLlibre) }
+    }
 
     LaunchedEffect(missatge) {
         missatge?.let {
@@ -59,42 +70,56 @@ fun LlibreFormScreen(viewModel: LlibreViewModel,
                     model = url,
                     contentDescription = "Caràtula",
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxWidth().height(220.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp)
                 )
                 Spacer(Modifier.height(8.dp))
             }
 
-
-            //Formulari
-
+            // Formulari
             OutlinedTextField(
                 value = llibre?.titol ?: "",
                 onValueChange = { nouTitol ->
-                    viewModel.actualitzarCamp { llibreActual ->
-                        llibreActual?.copy(titol = nouTitol) ?: Llibre(titol = nouTitol)
+                    viewModel.actualitzarCamp { actual ->
+                        actual?.copy(titol = nouTitol) ?: Llibre(titol = nouTitol)
                     }
                 },
                 label = { Text("Títol") },
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(8.dp))
+
             OutlinedTextField(
                 value = llibre?.autor ?: "",
                 onValueChange = { nouAutor ->
-                    viewModel.actualitzarCamp { llibreActual ->
-                        llibreActual?.copy(autor = nouAutor) ?: Llibre(autor = nouAutor)
+                    viewModel.actualitzarCamp { actual ->
+                        actual?.copy(autor = nouAutor) ?: Llibre(autor = nouAutor)
                     }
                 },
                 label = { Text("Autor") },
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(8.dp))
-            // Afegeix més camps igual
 
+            // ➕ Nou: camp ISBN (editable)
+            OutlinedTextField(
+                value = llibre?.isbn ?: "",
+                onValueChange = { nouIsbn ->
+                    viewModel.actualitzarCamp { actual ->
+                        actual?.copy(isbn = nouIsbn) ?: Llibre(isbn = nouIsbn)
+                    }
+                },
+                label = { Text("ISBN") },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(12.dp))
 
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-
-                // Afegeix aquí un botó per escanejar ISBN
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Obrir escàner d’ISBN
                 Button(
                     onClick = onScanIsbn,
                     enabled = !loading,
@@ -102,11 +127,18 @@ fun LlibreFormScreen(viewModel: LlibreViewModel,
                 ) {
                     Text("Escanejar ISBN")
                 }
-                // Afegeix aquí un botó per desar el llibre
+
+                // Desar llibre (habilitat si tenim ISBN)
                 val potDesar = !loading && !(llibre?.isbn.isNullOrBlank())
                 Button(
                     onClick = {
-                        llibre?.let { viewModel.guardarLlibre(it, onSave) }
+                        llibre?.let {
+                            viewModel.guardarLlibre(it) {
+                                // Neteja estat temporal i tanca
+                                viewModel.netejarEdicio()
+                                onSave()
+                            }
+                        }
                     },
                     enabled = potDesar,
                     modifier = Modifier.weight(1f)
@@ -114,17 +146,18 @@ fun LlibreFormScreen(viewModel: LlibreViewModel,
                     Text("Desar llibre")
                 }
 
-                // Afegeix aquí botó per netejar el formulari
+                // Netejar formulari (i estat d’edició si n’hi ha)
                 Button(
-                    onClick = { viewModel.netejarForm() },
+                    onClick = {
+                        viewModel.netejarForm()
+                        viewModel.netejarEdicio()
+                    },
                     enabled = !loading,
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Netejar")
                 }
-
             }
-
         }
     }
 }

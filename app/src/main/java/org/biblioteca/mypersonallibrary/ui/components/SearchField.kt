@@ -8,46 +8,32 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
+import androidx.compose.ui.text.input.TextFieldValue
 
 @Composable
-fun SearchField (
-
+fun SearchField(
     query: String,
     onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier
-
 ) {
-
-    val focusManager = LocalFocusManager.current
-    val keyboard = LocalSoftwareKeyboardController.current
-
     OutlinedTextField(
-
         value = query,
         onValueChange = onQueryChange,
         singleLine = true,
         label = { Text("Cerca") },
         placeholder = { Text("títol, autor, ISBN") },
         trailingIcon = {
-
             if (query.isNotBlank()) {
-
-                IconButton(
-                    onClick = {
-                        onQueryChange("")
-                        focusManager.clearFocus()
-                        keyboard?.hide()
-                    }
-                ) {
-                    Icon(Icons.Filled.Close, contentDescription = "Neteja cerca")
+                IconButton(onClick = { onQueryChange("") }) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Neteja cerca"
+                    )
                 }
-
             }
-
         },
-        modifier = modifier
+        modifier = modifier.semantics { testTag = "searchField" }
     )
-
 }
