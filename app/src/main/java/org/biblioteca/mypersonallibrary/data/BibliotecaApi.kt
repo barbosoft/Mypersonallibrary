@@ -1,0 +1,26 @@
+package org.biblioteca.mypersonallibrary.data
+
+import retrofit2.Response
+import retrofit2.http.*
+
+interface BibliotecaApi {
+
+    @GET("api/llibres/fetch/{isbn}")
+    suspend fun fetchByIsbn(@Path("isbn") isbn: String): Response<Llibre>
+
+    @POST("api/llibres")
+    suspend fun createLlibre(@Body llibre: Llibre): Response<Llibre>
+
+    @GET("api/llibres/autor/{autor}")
+    suspend fun getByAutor(@Path("autor") autor: String): Response<Llibre>
+
+    @GET("api/llibres")
+    suspend fun getAll(): Response<List<Llibre>>
+
+    @GET("api/llibres")
+    suspend fun getTotsElsLlibres(): List<Llibre>
+
+    @DELETE("api/llibres/{id}")
+    suspend fun deleteLlibre(@Path("id") id: Long): Response<Unit>
+
+}

@@ -1,0 +1,11 @@
+* text=auto eol=lf
+
+# Mantén els scripts amb LF
+*.sh text eol=lf
+gradlew text eol=lf
+
+# Imatges binàries
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
