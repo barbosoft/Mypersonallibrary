@@ -13,5 +13,10 @@ data class Llibre (
     val anyPublicacio: Int? = null,
     val idioma: String? = null,
     val categoria: String? = null,
-    val ubicacio: String? = null
+    val ubicacio: String? = null,
+
+    // 🔽 Camps nous (opcionales)
+    val llegit: Boolean? = null,
+    val comentari: String? = null,
+    val puntuacio: Int? = null // 0..5
 )

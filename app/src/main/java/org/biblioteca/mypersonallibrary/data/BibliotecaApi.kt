@@ -23,4 +23,8 @@ interface BibliotecaApi {
     @DELETE("api/llibres/{id}")
     suspend fun deleteLlibre(@Path("id") id: Long): Response<Unit>
 
+    @PUT("api/llibres/{id}")
+    suspend fun actualitzarLlibre(@Path("id") id: Long, @Body llibre: Llibre): Llibre
+
+
 }
