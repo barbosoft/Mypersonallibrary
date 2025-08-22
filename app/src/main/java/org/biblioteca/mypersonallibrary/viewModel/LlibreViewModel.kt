@@ -3,7 +3,10 @@ package org.biblioteca.mypersonallibrary.viewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import org.biblioteca.mypersonallibrary.data.Llibre
 import org.biblioteca.mypersonallibrary.data.LlibreRepository
@@ -28,6 +31,16 @@ open class LlibreViewModel : ViewModel() {
     // Llista de llibres
     private val _totsElsLlibres = MutableStateFlow<List<Llibre>>(emptyList())
     open val totsElsLlibres: StateFlow<List<Llibre>> get() = _totsElsLlibres
+
+    // ---------- Busy overlay (xarxa o navegació) ----------
+    private val _navegant = MutableStateFlow(false)
+    val navegant: StateFlow<Boolean> = _navegant
+    fun startNav() = run { _navegant.value = true }
+    fun endNav()   = run { _navegant.value = false }
+
+    val busy: StateFlow<Boolean> =
+        combine(loading, navegant) { l, n -> l || n }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     fun netejarMissatge() { _missatge.value = null }
 
@@ -155,4 +168,35 @@ open class LlibreViewModel : ViewModel() {
     }
 
     fun netejarEdicio() { _llibreEnEdicio.value = null }
+
+    fun desarEdicio(onSuccess: () -> Unit) {
+        val actual = llibre.value ?: run {
+            _missatge.value = "Cap llibre per desar"
+            return
+        }
+        val id = actual.id ?: run {
+            _missatge.value = "Aquest llibre no té ID (no es pot actualitzar)"
+            return
+        }
+
+        viewModelScope.launch {
+            _loading.value = true
+            repository.updateLlibre(actual).fold(
+                onSuccess = {
+                    _missatge.value = "Canvis desats"
+                    carregaTots()
+                    onSuccess()
+                },
+                onFailure = { e ->
+                    _missatge.value = when (e) {
+                        is java.io.IOException -> "Sense connexió. No s’han pogut desar els canvis."
+                        is retrofit2.HttpException -> "Error del servidor (${e.code()})."
+                        else -> "No s’han pogut desar els canvis."
+                    }
+                }
+            )
+            _loading.value = false
+        }
+    }
+
 }

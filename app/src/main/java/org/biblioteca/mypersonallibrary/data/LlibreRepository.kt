@@ -54,4 +54,15 @@ class LlibreRepository {
         Result.failure(e)
     }
 
+    suspend fun updateLlibre(l: Llibre): Result<Llibre> = runCatching {
+        val id = l.id ?: error("id requerit per actualitzar")
+        api.actualitzarLlibre(id, l.sanitizeForApi())
+    }
+
+    // (opcional) sanititza URIs locals per no enviar-les al servidor si no cal
+    private fun Llibre.sanitizeForApi(): Llibre {
+        return if (imatgeUrl?.startsWith("content://") == true) copy(imatgeUrl = null) else this
+    }
+
+
 }

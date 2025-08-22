@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.rememberLazyListState
+import org.biblioteca.mypersonallibrary.data.Llibre
 import org.biblioteca.mypersonallibrary.domain.Ordre
 import org.biblioteca.mypersonallibrary.domain.filtreLlibres
 import org.biblioteca.mypersonallibrary.domain.ordenaLlibres
@@ -29,7 +30,7 @@ import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
 @Composable
 fun LlibreListScreen(
     viewModel: LlibreViewModel,
-    onEdit: () -> Unit,
+    onEdit: (Llibre) -> Unit,
     onNouLlibre: () -> Unit
 ) {
     val llibres by viewModel.totsElsLlibres.collectAsState()
@@ -58,7 +59,15 @@ fun LlibreListScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = { CenterAlignedTopAppBar(title = { Text("Biblioteca") }) },
-        floatingActionButton = { FloatingActionButton(onClick = onNouLlibre) { Text("+") } }
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = {
+                    // 👉 Mostra loader mentre naveguem al formulari de creació
+                    //viewModel.endNav()
+                    onNouLlibre()
+                    viewModel.startNav()
+                }
+            ) { Text("+") } }
     ) { padding ->
 
         Column(
@@ -100,7 +109,12 @@ fun LlibreListScreen(
                 } else {
                     BooksList(
                         llibres = llistaMostrada,
-                        onEdit = { l -> viewModel.obrirLlibre(l); onEdit() },
+                        onEdit = { l ->
+                            // 👉 Mostra loader mentre naveguem a la pantalla d’edició
+                            viewModel.obrirLlibre(l)
+                            viewModel.endNav()
+                            onEdit(l)
+                        },
                         onEliminar = { l -> viewModel.eliminarLlibre(l) },
                         listState = listState
                     )
