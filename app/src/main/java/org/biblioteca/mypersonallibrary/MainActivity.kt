@@ -44,9 +44,11 @@ class MainActivity : ComponentActivity() {
             val text = result.data?.getStringExtra(ScanActivity.EXTRA_SCAN_RESULT)
             if (!text.isNullOrBlank()) {
                 vm.prepararNouLlibreAmbIsbn(text)
+                //vm.startNav()                                // 👈 mostra overlay mentre navega
                 vm.enriquirLlibrePerIsbn()
-                vm.startNav()                                // 👈 mostra overlay mentre navega
-                navController?.navigate(Screen.LlibreForm.route)
+                navController?.navigate(Screen.LlibreForm.route) {
+                    launchSingleTop = true
+                }
             }
         }
     }

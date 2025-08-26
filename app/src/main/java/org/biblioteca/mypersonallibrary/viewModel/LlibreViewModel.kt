@@ -134,25 +134,25 @@ open class LlibreViewModel : ViewModel() {
     }
 
     // ---------- Estat per al flux d’escàner/edició ----------
-    private val _llibreEnEdicio = MutableStateFlow<Llibre?>(null)
-    val llibreEnEdicio: StateFlow<Llibre?> = _llibreEnEdicio
+    //private val _llibreEnEdicio = MutableStateFlow<Llibre?>(null)
+    //val llibreEnEdicio: StateFlow<Llibre?> = _llibreEnEdicio
 
     /** Prepara un nou llibre a partir d’un ISBN escanejat. */
     fun prepararNouLlibreAmbIsbn(isbn: String) {
-        _llibreEnEdicio.value = Llibre(
+        _llibre.value = Llibre(
             id = null, titol = null, autor = null, isbn = isbn, imatgeUrl = null
         )
     }
 
     /** (Opcional) Enriquir camps titol/autor/imatge usant la crida existent del repositori. */
     fun enriquirLlibrePerIsbn() {
-        val actual = _llibreEnEdicio.value ?: return
+        val actual = _llibre.value ?: return
         val isbn = actual.isbn ?: return
         viewModelScope.launch {
             repository.fetchLlibreByIsbn(isbn).fold(
                 onSuccess = { enrich ->
                     if (enrich != null) {
-                        _llibreEnEdicio.value = actual.copy(
+                        _llibre.value = actual.copy(
                             titol = enrich.titol ?: actual.titol,
                             autor = enrich.autor ?: actual.autor,
                             imatgeUrl = enrich.imatgeUrl ?: actual.imatgeUrl
@@ -167,7 +167,7 @@ open class LlibreViewModel : ViewModel() {
         }
     }
 
-    fun netejarEdicio() { _llibreEnEdicio.value = null }
+    fun netejarEdicio() { _llibre.value = null }
 
     fun desarEdicio(onSuccess: () -> Unit) {
         val actual = llibre.value ?: run {

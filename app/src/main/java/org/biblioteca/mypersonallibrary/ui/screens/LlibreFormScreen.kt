@@ -151,10 +151,12 @@ fun LlibreFormScreen(
                 Button(
                     onClick = {
                         // 👉 Navegació a l’escàner: mostra loader abans de sortir
+                        //viewModel.startNav()
                         viewModel.endNav()
                         onScanIsbn()
                     },
-                    enabled = !loading,
+                    //enabled = !loading,
+                    enabled = true,
                     modifier = Modifier.weight(1f)
                 ) { Text("Escanejar ISBN") }
 /*
@@ -163,7 +165,7 @@ fun LlibreFormScreen(
                     enabled = !loading && normalizeIsbn(isbnInput).isNotBlank(),
                     modifier = Modifier.weight(1f)
                 ) { Text("Cercar") }
-*/
+*//*
                 val potDesar = !loading && !llibre?.isbn.isNullOrBlank()
                 Button(
                     onClick = {
@@ -173,6 +175,29 @@ fun LlibreFormScreen(
                     enabled = potDesar,
                     modifier = Modifier.weight(1f)
                 ) { Text("Desar llibre") }
+                */
+                // Desar llibre (habilitat si tenim ISBN)
+                val potDesar = !loading && !(llibre?.isbn.isNullOrBlank())
+                Button(
+                    onClick = {
+                        viewModel.endNav()
+
+                        llibre?.let {
+                            viewModel.guardarLlibre(it) {
+                                // Neteja estat temporal i tanca
+                                //viewModel.endNav()
+                                viewModel.netejarEdicio()
+                                onSave()
+                            }
+                        }
+                    },
+                    enabled = potDesar,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Desar llibre")
+                }
+
+
 
                 Button(
                     onClick = {

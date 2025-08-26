@@ -63,9 +63,9 @@ fun LlibreListScreen(
             FloatingActionButton(
                 onClick = {
                     // 👉 Mostra loader mentre naveguem al formulari de creació
-                    //viewModel.endNav()
+                    viewModel.endNav()
                     onNouLlibre()
-                    viewModel.startNav()
+                    //viewModel.endNav()
                 }
             ) { Text("+") } }
     ) { padding ->

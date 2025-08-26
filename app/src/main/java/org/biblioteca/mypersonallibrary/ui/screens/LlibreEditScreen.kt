@@ -27,6 +27,15 @@ import org.biblioteca.mypersonallibrary.data.Llibre
 import org.biblioteca.mypersonallibrary.ui.components.FocusableTextField
 import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
 
+// Insets helpers (foundation.layout)
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LlibreEditScreen(
@@ -38,9 +47,8 @@ fun LlibreEditScreen(
     val loading by viewModel.loading.collectAsState()
     val missatge by viewModel.missatge.collectAsState()
 
-    // 👉 ocultem el loader en arribar a la pantalla
+    // Oculta loader en arribar i si es desmunta
     LaunchedEffect(Unit) { viewModel.endNav() }
-    // 👇 i també per si la Composable es desmunta mentre estava true
     DisposableEffect(Unit) { onDispose { viewModel.endNav() } }
 
     val snackbar = remember { SnackbarHostState() }
@@ -48,23 +56,17 @@ fun LlibreEditScreen(
         missatge?.let { snackbar.showSnackbar(it); viewModel.netejarMissatge() }
     }
 
-    // Sense llibre (o sense ID) mostrem una UI mínima
     if (llibre?.id == null) {
         Scaffold(topBar = { CenterAlignedTopAppBar({ Text("Editar llibre") }) }) { padding ->
             Column(Modifier.padding(padding).padding(16.dp)) {
                 Text("Cap llibre carregat per editar.")
                 Spacer(Modifier.height(8.dp))
-                Button(onClick = {
-                    viewModel.endNav() // 👉 loader en sortir
-                    onCancel()
-                }
-                ) { Text("Tornar") }
+                Button(onClick = { viewModel.endNav(); onCancel() }) { Text("Tornar") }
             }
         }
         return
     }
 
-    // Photo Picker (no cal permís a Android 13+)
     val pickImage = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
@@ -75,7 +77,6 @@ fun LlibreEditScreen(
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = { CenterAlignedTopAppBar(title = { Text("Editar llibre") }) },
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        // ✅ Botons fixos a la part inferior
         bottomBar = {
             Row(
                 modifier = Modifier
@@ -87,16 +88,12 @@ fun LlibreEditScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 OutlinedButton(
-                    onClick = {
-                        viewModel.endNav() // 👉 loader en sortir
-                        onCancel()
-                    },
+                    onClick = { viewModel.endNav(); onCancel() },
                     enabled = !loading
                 ) { Text("Cancel·lar") }
 
                 Button(
                     onClick = {
-                        // 👉 mostrem loader mentre es desa i es navega enrere a l’onDone
                         viewModel.endNav()
                         viewModel.desarEdicio(onDone)
                     },
@@ -107,20 +104,16 @@ fun LlibreEditScreen(
         }
     ) { innerPadding ->
 
-        // ✅ Llista scrollable per a tot el formulari
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
                 .consumeWindowInsets(innerPadding)
-                .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
-                )
-                .imePadding(), // perquè el teclat no tapi camps
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top))
+                .imePadding(),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Portada (amb alçada controlada)
             val cover = llibre?.imatgeUrl
             if (!cover.isNullOrBlank()) {
                 item {
@@ -136,12 +129,9 @@ fun LlibreEditScreen(
                 }
             }
 
-            // Botons d’imatge
             item {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
                     OutlinedButton(
                         onClick = {
                             pickImage.launch(
@@ -158,7 +148,6 @@ fun LlibreEditScreen(
                 }
             }
 
-            // Títol
             item {
                 var titol by rememberSaveable(llibre?.id) { mutableStateOf(llibre?.titol.orEmpty()) }
                 LaunchedEffect(llibre?.titol) { titol = llibre?.titol.orEmpty() }
@@ -166,12 +155,11 @@ fun LlibreEditScreen(
                 FocusableTextField(
                     value = titol,
                     onValueChange = { v -> viewModel.actualitzarCamp { (it ?: Llibre()).copy(titol = v) } },
-                    label = "Títol" ,
+                    label = "Títol",
                     modifier = Modifier.fillMaxWidth()
                 )
             }
 
-            // Autor
             item {
                 OutlinedTextField(
                     value = llibre?.autor.orEmpty(),
@@ -181,18 +169,16 @@ fun LlibreEditScreen(
                 )
             }
 
-            // ISBN (normalment no editable en edició)
             item {
                 OutlinedTextField(
                     value = llibre?.isbn.orEmpty(),
-                    onValueChange = { /* noop */ },
+                    onValueChange = { },
                     readOnly = true,
                     label = { Text("ISBN") },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
 
-            // Editorial
             item {
                 OutlinedTextField(
                     value = llibre?.editorial.orEmpty(),
@@ -201,7 +187,7 @@ fun LlibreEditScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            // Edició
+
             item {
                 OutlinedTextField(
                     value = llibre?.edicio.orEmpty(),
@@ -210,13 +196,11 @@ fun LlibreEditScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            // Pàgines
-            item {
 
+            item {
                 var paginesText by rememberSaveable(llibre?.id) {
                     mutableStateOf(llibre?.pagines?.toString().orEmpty())
                 }
-                // si el VM canvia externament, actualitzem el text
                 LaunchedEffect(llibre?.pagines) {
                     paginesText = llibre?.pagines?.toString().orEmpty()
                 }
@@ -236,7 +220,7 @@ fun LlibreEditScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            // Idioma
+
             item {
                 OutlinedTextField(
                     value = llibre?.idioma.orEmpty(),
@@ -245,7 +229,7 @@ fun LlibreEditScreen(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
-            // Sinopsis
+
             item {
                 OutlinedTextField(
                     value = llibre?.sinopsis.orEmpty(),
@@ -255,9 +239,6 @@ fun LlibreEditScreen(
                 )
             }
 
-
-
-            // Llegit + comentari
             item {
                 val llegit = llibre?.llegit == true
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -288,7 +269,6 @@ fun LlibreEditScreen(
                 }
             }
 
-            // Valoració (0..5)
             item {
                 val rating = rememberSaveable(llibre?.id) { mutableStateOf(llibre?.puntuacio ?: 0) }
                 LaunchedEffect(llibre?.puntuacio) { rating.value = llibre?.puntuacio ?: 0 }
@@ -304,7 +284,6 @@ fun LlibreEditScreen(
                 )
             }
 
-            // (Espai final per no quedar enganxat al bottomBar)
             item { Spacer(Modifier.height(8.dp)) }
         }
     }
@@ -317,7 +296,7 @@ private fun RatingBar(
     modifier: Modifier = Modifier
 ) {
     val filledColor = MaterialTheme.colorScheme.primary
-    val emptyColor  = MaterialTheme.colorScheme.onSurfaceVariant
+    val emptyColor = MaterialTheme.colorScheme.onSurfaceVariant
 
     Row(
         modifier = modifier,
@@ -326,7 +305,10 @@ private fun RatingBar(
     ) {
         (1..5).forEach { i ->
             val filled = i <= rating
-            val scale by animateFloatAsState(targetValue = if (filled) 1.15f else 1f, label = "")
+            val scale by animateFloatAsState(
+                targetValue = if (filled) 1.15f else 1f,
+                label = ""
+            )
             Icon(
                 imageVector = if (filled) Icons.Filled.Star else Icons.Outlined.Star,
                 contentDescription = "$i estrelles",
