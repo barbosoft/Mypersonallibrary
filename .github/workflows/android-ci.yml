@@ -27,7 +27,6 @@ jobs:
         uses: android-actions/setup-android@v3
         with:
           packages: |
-            cmdline-tools;latest
             platform-tools
             platforms;android-35
             build-tools;35.0.1
@@ -81,7 +80,6 @@ jobs:
         uses: android-actions/setup-android@v3
         with:
           packages: |
-            cmdline-tools;latest
             platform-tools
             emulator
             platforms;android-35
