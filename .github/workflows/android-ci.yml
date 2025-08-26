@@ -23,15 +23,15 @@ jobs:
           java-version: 17
           cache: gradle
 
-      # Inicialitza l'SDK (no instal·la res)
+      # Inicialitza l’SDK (no instal·la paquets)
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      # Diagnòstic (opcional) - per veure els paquets disponibles
+      # (Opcional) Diagnòstic
       - name: List available Android packages
         run: sdkmanager --list | head -n 200
 
-      # Instal·la API i build-tools amb retry
+      # Instal·la el que requereix el teu projecte (compileSdk 35)
       - name: Install API 35 + build-tools
         run: |
           for i in 1 2 3; do
@@ -88,10 +88,11 @@ jobs:
             sdkmanager "platforms;android-35" "build-tools;35.0.1" && break || sleep 15
           done
 
-      - name: Install emulator + system image (API 29)
+      # Emulador estable: API 34 + google_apis
+      - name: Install emulator + system image (API 34)
         run: |
           for i in 1 2 3; do
-            sdkmanager "emulator" "system-images;android-29;default;x86_64" && break || sleep 15
+            sdkmanager "emulator" "system-images;android-34;google_apis;x86_64" && break || sleep 15
           done
 
       - name: Accept Android licenses
@@ -103,16 +104,20 @@ jobs:
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v3
 
+      # Precompila per escurçar el temps dins l’emulador
       - name: Assemble app & androidTest
         run: ./gradlew --stacktrace --no-daemon :app:assembleDebug :app:assembleAndroidTest
 
-      - name: Run connected tests on API 29
+      - name: Run connected tests on API 34
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
+          api-level: 34
+          target: google_apis
           arch: x86_64
-          target: default
+          profile: pixel_6
+          boot-timeout: 900
           disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -camera-back none
           script: ./gradlew --stacktrace --no-daemon connectedDebugAndroidTest
 
       - name: Upload AndroidTest reports
