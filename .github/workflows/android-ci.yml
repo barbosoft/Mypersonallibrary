@@ -23,23 +23,23 @@ jobs:
           java-version: 17
           cache: gradle
 
-      - name: Install Android SDK + packages
+      # Inicialitza l'SDK (no instal·la res)
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          packages: |
-            platform-tools
-            platforms;android-35
-            build-tools;35.0.1
+
+      # Diagnòstic (opcional) - per veure els paquets disponibles
+      - name: List available Android packages
+        run: sdkmanager --list | head -n 200
+
+      # Instal·la API i build-tools amb retry
+      - name: Install API 35 + build-tools
+        run: |
+          for i in 1 2 3; do
+            sdkmanager "platforms;android-35" "build-tools;35.0.1" && break || sleep 15
+          done
 
       - name: Accept Android licenses
         run: yes | sdkmanager --licenses
-
-      # retry defensiu per si sdkmanager té errors de xarxa
-      - name: Verify required packages (retry)
-        run: |
-          for i in 1 2 3; do
-            sdkmanager --install "platforms;android-35" "build-tools;35.0.1" && break || sleep 10
-          done
 
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
@@ -76,15 +76,23 @@ jobs:
           java-version: 17
           cache: gradle
 
-      - name: Install Android SDK + packages
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          packages: |
-            platform-tools
-            emulator
-            platforms;android-35
-            build-tools;35.0.1
-            system-images;android-29;default;x86_64
+
+      - name: List available Android packages
+        run: sdkmanager --list | head -n 200
+
+      - name: Install API 35 + build-tools
+        run: |
+          for i in 1 2 3; do
+            sdkmanager "platforms;android-35" "build-tools;35.0.1" && break || sleep 15
+          done
+
+      - name: Install emulator + system image (API 29)
+        run: |
+          for i in 1 2 3; do
+            sdkmanager "emulator" "system-images;android-29;default;x86_64" && break || sleep 15
+          done
 
       - name: Accept Android licenses
         run: yes | sdkmanager --licenses
@@ -95,7 +103,6 @@ jobs:
       - name: Set up Gradle cache
         uses: gradle/actions/setup-gradle@v3
 
-      # Precompilar per escurçar temps dins l'emulador
       - name: Assemble app & androidTest
         run: ./gradlew --stacktrace --no-daemon :app:assembleDebug :app:assembleAndroidTest
 
