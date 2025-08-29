@@ -26,5 +26,18 @@ interface BibliotecaApi {
     @PUT("api/llibres/{id}")
     suspend fun actualitzarLlibre(@Path("id") id: Long, @Body llibre: Llibre): Llibre
 
+    // endpoints Wishlist
+    @GET("wishlist")
+    suspend fun getWishlist(): List<WishlistItem>
+
+    @POST("wishlist")
+    suspend fun addWishlist(@Body item: WishlistItem): WishlistItem
+
+    @DELETE("wishlist/{id}")
+    suspend fun deleteWishlist(@Path("id") id: Long)
+
+    @POST("wishlist/{id}/purchase")
+    suspend fun purchaseWishlist(@Path("id") id: Long): Llibre
+
 
 }

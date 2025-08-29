@@ -18,11 +18,13 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import org.biblioteca.mypersonallibrary.data.Llibre
 import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
+import org.biblioteca.mypersonallibrary.viewModel.WishlistViewModel   // 🆕
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LlibreFormScreen(
     viewModel: LlibreViewModel,
+    wishlistVM: WishlistViewModel,               // 🆕 injectem el VM de wishlist
     onSave: () -> Unit,
     onScanIsbn: () -> Unit
 ) {
@@ -48,6 +50,10 @@ fun LlibreFormScreen(
     // Control del text d'entrada
     var isbnInput by rememberSaveable { mutableStateOf("") }
     LaunchedEffect(llibre?.isbn) { isbnInput = llibre?.isbn.orEmpty() }
+
+    // 🆕 Estat per a la llista de compra
+    var perComprar by rememberSaveable { mutableStateOf(false) }   // si es marca, es desa com a wishlist
+    var notes by rememberSaveable { mutableStateOf("") }           // notes opcionals per a la compra
 
     // Error de longitud (per a feedback mentre s’escriu)
     val normalizedForLen = remember(isbnInput) { normalizeIsbn(isbnInput) }
@@ -143,6 +149,22 @@ fun LlibreFormScreen(
 
             Spacer(Modifier.height(12.dp))
 
+            // 🆕 ------ Bloc "Afegir a la llista de compra" ------
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Checkbox(checked = perComprar, onCheckedChange = { perComprar = it })
+                Text("Afegir a la llista de compra")
+            }
+            if (perComprar) {
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Notes (opcional)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(12.dp))
+            }
+            // 🆕 ------ Fi bloc wishlist ------
+
             // ---------- Accions ----------
             Row(
                 Modifier.fillMaxWidth(),
@@ -150,42 +172,29 @@ fun LlibreFormScreen(
             ) {
                 Button(
                     onClick = {
-                        // 👉 Navegació a l’escàner: mostra loader abans de sortir
-                        //viewModel.startNav()
+                        // 👉 Navegació a l’escàner: mostra/amaga loader segons convingui
                         viewModel.endNav()
                         onScanIsbn()
                     },
-                    //enabled = !loading,
                     enabled = true,
                     modifier = Modifier.weight(1f)
                 ) { Text("Escanejar ISBN") }
-/*
-                Button(
-                    onClick = { performSearch() },
-                    enabled = !loading && normalizeIsbn(isbnInput).isNotBlank(),
-                    modifier = Modifier.weight(1f)
-                ) { Text("Cercar") }
-*//*
-                val potDesar = !loading && !llibre?.isbn.isNullOrBlank()
-                Button(
-                    onClick = {
-                        // 👉 Guardar i tornar: mostra loader abans de navegar enrere
-                        viewModel.endNav()
-                        llibre?.let { viewModel.guardarLlibre(it, onSave) } },
-                    enabled = potDesar,
-                    modifier = Modifier.weight(1f)
-                ) { Text("Desar llibre") }
-                */
-                // Desar llibre (habilitat si tenim ISBN)
+
+                // Desar (habilitat si tenim ISBN)
                 val potDesar = !loading && !(llibre?.isbn.isNullOrBlank())
                 Button(
                     onClick = {
                         viewModel.endNav()
+                        val actual = viewModel.llibre.value
+                            ?: Llibre(isbn = normalizeIsbn(isbnInput)) // salvaguarda
 
-                        llibre?.let {
-                            viewModel.guardarLlibre(it) {
-                                // Neteja estat temporal i tanca
-                                //viewModel.endNav()
+                        if (perComprar) {
+                            // 🆕 Desa a la wishlist i torna
+                            wishlistVM.addFromCurrentBook(actual, notes)
+                            onSave()
+                        } else {
+                            // Desa com a llibre normal
+                            viewModel.guardarLlibre(actual) {
                                 viewModel.netejarEdicio()
                                 onSave()
                             }
@@ -194,15 +203,14 @@ fun LlibreFormScreen(
                     enabled = potDesar,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text("Desar llibre")
+                    Text(if (perComprar) "Desar a compra" else "Desar llibre")   // 🆕 etiqueta dinàmica
                 }
-
-
 
                 Button(
                     onClick = {
                         viewModel.endNav()
-                        viewModel.netejarForm() },
+                        viewModel.netejarForm()
+                    },
                     enabled = !loading,
                     modifier = Modifier.weight(1f)
                 ) { Text("Netejar") }
@@ -227,7 +235,6 @@ private fun validateIsbn(isbn: String): String? {
 }
 
 private fun isValidIsbn10(isbn10: String): Boolean {
-    // 9 primers dígits + darrer pot ser X
     if (!isbn10.substring(0, 9).all { it.isDigit() }) return false
     if (!(isbn10.last().isDigit() || isbn10.last() == 'X')) return false
     var sum = 0
@@ -247,3 +254,4 @@ private fun isValidIsbn13(isbn13: String): Boolean {
     val check = (10 - (sum % 10)) % 10
     return check == (isbn13[12] - '0')
 }
+
