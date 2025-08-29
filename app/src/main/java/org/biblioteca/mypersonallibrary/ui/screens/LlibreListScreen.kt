@@ -17,6 +17,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ShoppingCart
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import org.biblioteca.mypersonallibrary.data.Llibre
 import org.biblioteca.mypersonallibrary.domain.Ordre
 import org.biblioteca.mypersonallibrary.domain.filtreLlibres
@@ -31,7 +35,8 @@ import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
 fun LlibreListScreen(
     viewModel: LlibreViewModel,
     onEdit: (Llibre) -> Unit,
-    onNouLlibre: () -> Unit
+    onNouLlibre: () -> Unit,
+    onOpenWishList: () -> Unit
 ) {
     val llibres by viewModel.totsElsLlibres.collectAsState()
     val loading by viewModel.loading.collectAsState()
@@ -58,7 +63,17 @@ fun LlibreListScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
-        topBar = { CenterAlignedTopAppBar(title = { Text("Biblioteca") }) },
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Biblioteca") },
+        actions = {
+            IconButton(onClick = onOpenWishList) {
+                Icon(
+                    imageVector = Icons.Outlined.ShoppingCart,
+                    contentDescription = "Per comprar"
+                )
+            }
+        })},
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {

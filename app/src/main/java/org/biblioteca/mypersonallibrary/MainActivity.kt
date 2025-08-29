@@ -5,7 +5,6 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -30,11 +29,14 @@ import org.biblioteca.mypersonallibrary.ui.components.rememberSmartBusy
 import org.biblioteca.mypersonallibrary.ui.screens.LlibreEditScreen
 import org.biblioteca.mypersonallibrary.ui.screens.LlibreFormScreen
 import org.biblioteca.mypersonallibrary.ui.screens.LlibreListScreen
+import org.biblioteca.mypersonallibrary.ui.screens.WishlistScreen
 import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
+import org.biblioteca.mypersonallibrary.viewModel.WishlistViewModel
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var vm: LlibreViewModel
+    private lateinit var wishlistVM: WishlistViewModel
     private var navController: NavHostController? = null
 
     private val scanLauncher = registerForActivityResult(
@@ -44,7 +46,6 @@ class MainActivity : ComponentActivity() {
             val text = result.data?.getStringExtra(ScanActivity.EXTRA_SCAN_RESULT)
             if (!text.isNullOrBlank()) {
                 vm.prepararNouLlibreAmbIsbn(text)
-                //vm.startNav()                                // 👈 mostra overlay mentre navega
                 vm.enriquirLlibrePerIsbn()
                 navController?.navigate(Screen.LlibreForm.route) {
                     launchSingleTop = true
@@ -59,16 +60,21 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // 👇 Permet que Compose gestioni sistemes i IME insets moderns
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        //enableEdgeToEdge()
+
         setContent {
             vm = viewModel()
+            wishlistVM = viewModel()       // 👈 crea el WishlistViewModel
             val nav = rememberNavController()
             navController = nav
 
             MaterialTheme {
-                AppNavHost(nav = nav, vm = vm, obrirEscaner = ::obrirEscaner)
+                AppNavHost(
+                    nav = nav,
+                    vm = vm,
+                    wishlistVM = wishlistVM,
+                    obrirEscaner = ::obrirEscaner
+                )
             }
         }
     }
@@ -78,6 +84,7 @@ class MainActivity : ComponentActivity() {
 private fun AppNavHost(
     nav: NavHostController,
     vm: LlibreViewModel,
+    wishlistVM: WishlistViewModel,        // 👈 el passem a les pantalles que el necessiten
     obrirEscaner: () -> Unit
 ) {
     // Overlay global “intel·ligent”
@@ -85,13 +92,13 @@ private fun AppNavHost(
     val busy by rememberSmartBusy(rawBusy, showDelayMs = 0, minShowMs = 600)
 
     Box(Modifier.fillMaxSize()) {
+
         NavBusyBinder(nav, vm)
+
         NavHost(navController = nav, startDestination = Screen.LlibreList.route) {
 
             composable(Screen.LlibreList.route) {
-                // Atura overlay en entrar a la pantalla
                 LaunchedEffect(Unit) { vm.endNav() }
-
                 LlibreListScreen(
                     viewModel = vm,
                     onEdit = { l ->
@@ -103,15 +110,18 @@ private fun AppNavHost(
                         vm.obrirLlibre(Llibre())
                         vm.startNav()
                         nav.navigate(Screen.LlibreForm.route)
+                    },
+                    onOpenWishList = {                      // 👈 botó del carro
+                        nav.navigate(Screen.Wishlist.route)
                     }
                 )
             }
 
             composable(Screen.LlibreForm.route) {
                 LaunchedEffect(Unit) { vm.endNav() }
-
                 LlibreFormScreen(
                     viewModel = vm,
+                    wishlistVM = wishlistVM,               // 👈 FALTAVA aquest paràmetre
                     onSave = {
                         vm.startNav()
                         nav.popBackStack()
@@ -122,7 +132,6 @@ private fun AppNavHost(
 
             composable(Screen.LlibreEdit.route) {
                 LaunchedEffect(Unit) { vm.endNav() }
-
                 LlibreEditScreen(
                     viewModel = vm,
                     onDone = {
@@ -133,6 +142,16 @@ private fun AppNavHost(
                         vm.startNav()
                         nav.popBackStack()
                     }
+                )
+            }
+
+            // 👉 Nova ruta de la wishlist
+            composable(Screen.Wishlist.route) {
+                LaunchedEffect(Unit) { vm.endNav() }
+                WishlistScreen(
+                    llibresVM = vm,
+                    wishlistVM = wishlistVM,
+                    onBack = { nav.popBackStack() }
                 )
             }
         }
