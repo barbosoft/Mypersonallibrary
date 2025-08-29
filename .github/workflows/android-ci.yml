@@ -92,7 +92,6 @@ jobs:
       # IMPORTANT: task correcte per a l’APK de tests
       - name: Assemble app & androidTest
         run: ./gradlew --stacktrace --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest
-
       - name: Run connected tests on API 34
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -101,11 +100,8 @@ jobs:
           arch: x86_64
           profile: pixel_6
           force-avd-creation: true
-          emulator-boot-timeout: 1200
+          emulator-boot-timeout: 1800
           disable-animations: true
-          pre-emulator-launch-script: |
-            adb kill-server || true
-            adb start-server
           emulator-options: >-
             -no-window
             -gpu swiftshader_indirect
@@ -117,7 +113,18 @@ jobs:
             -camera-front none
           script: |
             adb devices
+            # Espera que el dispositiu respongui
+            adb wait-for-device
+            # Espera que Android declari que ha completat l'arrencada
+            adb shell 'while [[ "$(getprop sys.boot_completed)" != "1" ]]; do sleep 2; done'
+            adb shell 'while [[ -z "$(getprop dev.bootcomplete)" ]]; do sleep 1; done'
+            # Assegura que el Package Manager està disponible
+            adb shell 'until pm list packages >/dev/null 2>&1; do sleep 2; done'
+            # Desbloqueja pantalla (per si queda a l’escriptori de bloqueig)
+            adb shell input keyevent 82 || true
+            # Executa els tests instrumentats
             ./gradlew --stacktrace --no-daemon connectedDebugAndroidTest
+
 
       - name: Upload AndroidTest reports
         if: always()
