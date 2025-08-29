@@ -92,10 +92,10 @@ jobs:
       # IMPORTANT: task correcte per a l’APK de tests
       - name: Assemble app & androidTest
         run: ./gradlew --stacktrace --no-daemon :app:assembleDebug :app:assembleDebugAndroidTest
-      - name: Run connected tests on API 33
+      - name: Run connected tests on API 34
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 33
+          api-level: 34
           target: google_apis
           arch: x86_64
           profile: pixel_6
