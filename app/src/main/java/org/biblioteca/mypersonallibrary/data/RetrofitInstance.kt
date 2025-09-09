@@ -1,63 +1,79 @@
 package org.biblioteca.mypersonallibrary.data
 
 import android.util.Log
-import androidx.core.app.NotificationCompat.MessagingStyle.Message
 import com.google.gson.GsonBuilder
-//import com.google.zxing.client.android.BuildConfig
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
-import retrofit2.Retrofit
-import retrofit2.converter.gson.GsonConverterFactory
 import org.biblioteca.mypersonallibrary.BuildConfig
+import org.biblioteca.mypersonallibrary.data.remote.WishlistApi
 import org.json.JSONArray
 import org.json.JSONObject
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 
 object RetrofitInstance {
 
-    //private const val BASE_URL = "http://10.0.2.2:8080/"  // Emulador Android Studio
-    private const val BASE_URL = "http://192.168.1.145:8080/" // Amb mòbil físic
+    // Emulador: "http://10.0.2.2:8080/"
+    private const val BASE_URL = "http://192.168.1.145:8080/"
 
-    // Funció per fer Pretty print del JSONç
-    private fun prettyJsonIfPossible(message: String): String {
-        return try {
-            val trimmed = message.trim()
-            when {
-                trimmed.startsWith("{") -> JSONObject(trimmed).toString(4)
-                trimmed.startsWith("{") -> JSONArray(trimmed).toString(4)
-                else -> message // Si no és JSON, no ho modifiquem
-            }
-        } catch (_: Exception) {
-            message // Si no és JSON vàlid, deixem el text original
-        }
+    fun wishlistApi(baseUrl: String = BASE_URL): WishlistApi {
+        return Retrofit.Builder()
+            .baseUrl(baseUrl)
+            .client(client)
+            .addConverterFactory(
+                GsonConverterFactory.create(
+                    GsonBuilder().setPrettyPrinting().create()
+                )
+            )
+            .build()
+            .create(WishlistApi::class.java)
     }
 
-    // Logger d'HTTP (tag ? "HTTP" al Logcat
+    // Pretty print si el missatge és JSON
+    private fun prettyJsonIfPossible(message: String): String = try {
+        val t = message.trim()
+        when {
+            t.startsWith("{") -> JSONObject(t).toString(4)
+            t.startsWith("[") -> JSONArray(t).toString(4)   // <-- arreglat (abans hi havia "{")
+            else -> message
+        }
+    } catch (_: Exception) { message }
+
+    // Logger HTTP
     private val logging = HttpLoggingInterceptor { msg ->
         Log.d("BIBLIOTECA_HTTP", prettyJsonIfPossible(msg))
     }.apply {
         level = if (BuildConfig.DEBUG)
             HttpLoggingInterceptor.Level.BODY
-
         else
             HttpLoggingInterceptor.Level.NONE
-
-
     }
 
-    private val  client: OkHttpClient = OkHttpClient.Builder()
-        .addInterceptor(logging)
-        .build()
+    private val client: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .addInterceptor(logging)
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
 
-    val api: BibliotecaApi by lazy {
+    // Gson configurat
+    private val gson by lazy {
+        GsonBuilder()
+            .serializeNulls()   // conserva nulls si cal
+            .setLenient()       // permissiu amb JSON irregular
+            .create()
+    }
+
+    private val retrofit: Retrofit by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
-            .client(client) //Per filtrar al Logcat
-            .addConverterFactory(
-                GsonConverterFactory.create(
-                    GsonBuilder().setPrettyPrinting().create()
-                ))
+            .client(client)
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
-            .create(BibliotecaApi::class.java)
     }
 
+    val api: BibliotecaApi by lazy { retrofit.create(BibliotecaApi::class.java) }
 }

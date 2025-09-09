@@ -1,7 +1,12 @@
 plugins {
+    // Plugins via version catalog
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
+
+    // 🔁 KSP per a Room (més ràpid que kapt)
+    //id("com.google.devtools.ksp")
 }
 
 android {
@@ -37,7 +42,7 @@ android {
         compose = true
         buildConfig = true
     }
-    composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
+    composeOptions { kotlinCompilerExtensionVersion = "1.6.11" }
 }
 
 dependencies {
@@ -60,10 +65,12 @@ dependencies {
     // Icons (opcional)
     implementation("androidx.compose.material:material-icons-extended")
 
-    // Xarxa
-    implementation("com.squareup.retrofit2:retrofit:2.9.0")
-    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    // Xarxa (Retrofit + Gson)
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+// (Opcional explícit) implementation("com.google.code.gson:gson:2.11.0")
+
 
     // Escàner: CameraX + ML Kit
     implementation("androidx.camera:camera-core:1.3.4")
@@ -75,6 +82,20 @@ dependencies {
     // Lifecycle / ViewModel
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.4")
+
+    // Room (migrat a KSP; afegeixo runtime que faltava)
+    val room = "2.6.1"                       // ↩︎ pots baixar a 2.6.1 si vols
+    implementation("androidx.room:room-runtime:$room")
+    implementation("androidx.room:room-ktx:$room")
+    ksp("androidx.room:room-compiler:$room")
+    // (opc) proves instrumentades
+    androidTestImplementation("androidx.room:room-testing:$room")
+
+    // WorkManager
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
+
+    // DataStore per guardar l'últim sync
+    implementation("androidx.datastore:datastore-preferences:1.1.1")
 
     // Altres
     implementation("androidx.appcompat:appcompat:1.7.1")
@@ -88,6 +109,11 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
-
 }
 
+// ⚙️ Config per a Room amb KSP (esquemes i compilació incremental)
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+    arg("room.incremental", "true")
+    arg("room.generateKotlin", "true")
+}

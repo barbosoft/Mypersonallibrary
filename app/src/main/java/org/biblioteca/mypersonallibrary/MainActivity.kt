@@ -20,7 +20,14 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.WorkManager
 import org.biblioteca.mypersonallibrary.data.Llibre
+import org.biblioteca.mypersonallibrary.data.RetrofitInstance          // 👈 AFEGIT
+import org.biblioteca.mypersonallibrary.data.WishlistRepositoryHybrid  // 👈 AFEGIT
+import org.biblioteca.mypersonallibrary.data.local.AppDatabase         // 👈 AFEGIT
+import org.biblioteca.mypersonallibrary.data.sync.WishlistSyncWorker
+// import org.biblioteca.mypersonallibrary.data.sync.SyncPrefs        // (opcional)
 import org.biblioteca.mypersonallibrary.navigation.Screen
 import org.biblioteca.mypersonallibrary.scanner.ScanActivity
 import org.biblioteca.mypersonallibrary.ui.components.BusyOverlay
@@ -32,6 +39,7 @@ import org.biblioteca.mypersonallibrary.ui.screens.LlibreListScreen
 import org.biblioteca.mypersonallibrary.ui.screens.WishlistScreen
 import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
 import org.biblioteca.mypersonallibrary.viewModel.WishlistViewModel
+import org.biblioteca.mypersonallibrary.viewModel.WishlistViewModelFactory // 👈 AFEGIT
 
 class MainActivity : ComponentActivity() {
 
@@ -63,8 +71,21 @@ class MainActivity : ComponentActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
+            // ------ ViewModels ------
             vm = viewModel()
-            wishlistVM = viewModel()       // 👈 crea el WishlistViewModel
+
+            // ✅ Crea DB → API → Repo → Factory → WishlistViewModel
+            val db = AppDatabase.get(applicationContext)
+            val api = RetrofitInstance.wishlistApi()               // ← API Retrofit per a wishlist
+            // val prefs = SyncPrefs(applicationContext)            // (opcional)
+
+            val wishlistRepo = WishlistRepositoryHybrid(
+                dao = db.wishlistDao(),
+                api = api
+                // , prefs = prefs
+            )
+            wishlistVM = viewModel(factory = WishlistViewModelFactory(wishlistRepo))
+
             val nav = rememberNavController()
             navController = nav
 
@@ -77,6 +98,21 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+
+        // ------------------------------------------------------------------
+        // 🔄 Registra el Worker de sincronització de la Wishlist
+        //    - Periodic: s'executa cada X hores (definit a WishlistSyncWorker.periodic())
+        //    - Unique + KEEP evita duplicats si l’Activity es recrea
+        // ------------------------------------------------------------------
+        WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
+            "wishlist_sync_periodic",
+            ExistingPeriodicWorkPolicy.KEEP,
+            WishlistSyncWorker.periodic()
+        )
+
+        // (Opcional) Llança una sincronització immediata a l’arrencada
+        WorkManager.getInstance(applicationContext)
+            .enqueue(WishlistSyncWorker.oneOff())
     }
 }
 
@@ -84,7 +120,8 @@ class MainActivity : ComponentActivity() {
 private fun AppNavHost(
     nav: NavHostController,
     vm: LlibreViewModel,
-    wishlistVM: WishlistViewModel,        // 👈 el passem a les pantalles que el necessiten
+    wishlistVM: WishlistViewModel,
+
     obrirEscaner: () -> Unit
 ) {
     // Overlay global “intel·ligent”
@@ -145,7 +182,7 @@ private fun AppNavHost(
                 )
             }
 
-            // 👉 Nova ruta de la wishlist
+
             composable(Screen.Wishlist.route) {
                 LaunchedEffect(Unit) { vm.endNav() }
                 WishlistScreen(
@@ -159,3 +196,4 @@ private fun AppNavHost(
         BusyOverlay(show = busy)
     }
 }
+

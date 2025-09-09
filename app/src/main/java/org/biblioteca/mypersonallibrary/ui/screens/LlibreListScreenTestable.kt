@@ -1,6 +1,7 @@
 package org.biblioteca.mypersonallibrary.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -8,14 +9,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.lazy.rememberLazyListState
 import org.biblioteca.mypersonallibrary.data.Llibre
 import org.biblioteca.mypersonallibrary.domain.Ordre
-import org.biblioteca.mypersonallibrary.domain.filtreLlibres
-import org.biblioteca.mypersonallibrary.domain.ordenaLlibres
 import org.biblioteca.mypersonallibrary.ui.components.BooksList
-import org.biblioteca.mypersonallibrary.ui.components.OrderDropdown
-import org.biblioteca.mypersonallibrary.ui.components.SearchField
+import org.biblioteca.mypersonallibrary.ui.components.ListFiltersBar
+//import org.biblioteca.mypersonallibrary.ui.components.ListOrder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -32,16 +30,34 @@ fun LlibreListScreenTestable(
     LaunchedEffect(missatge) { missatge?.let { snackbar.showSnackbar(it) } }
 
     var query by remember { mutableStateOf("") }
-    var ordre by remember { mutableStateOf(Ordre.AUTOR) }
+    var order by remember { mutableStateOf(Ordre.AUTOR) }
 
-    val llistaMostrada = remember(llibres, query, ordre) {
-        ordenaLlibres(filtreLlibres(llibres, query), ordre)
+    val listState = rememberLazyListState()
+    val pullState = rememberPullToRefreshState()
+
+    // Filtrat + ordre com a producció (sense dependències del mòdul domain)
+    val llistaMostrada by remember(llibres, query, order) {
+        mutableStateOf(
+            run {
+                val q = query.trim()
+                val base = if (q.isBlank()) llibres else llibres.filter { l ->
+                    (l.titol?.contains(q, ignoreCase = true) == true) ||
+                            (l.autor?.contains(q, ignoreCase = true) == true) ||
+                            (l.isbn?.contains(q, ignoreCase = true) == true) ||
+                            (l.idioma?.contains(q, ignoreCase = true) == true)
+                }
+                when (order) {
+                    Ordre.RECENT -> base.sortedByDescending { it.id ?: 0L }
+                    Ordre.TITOL  -> base.sortedBy { it.titol ?: "~" }
+                    Ordre.AUTOR -> base.sortedBy { it.autor ?: "~" }
+                    Ordre.ISBN   -> base.sortedBy { it.isbn ?: "~" }
+                }
+            }
+        )
     }
 
-    val pullState = rememberPullToRefreshState()
-    val listState = rememberLazyListState()
-
-    LaunchedEffect(ordre, query) {
+    // Scroll a dalt en canviar filtre/ordre
+    LaunchedEffect(order, query) {
         if (listState.firstVisibleItemIndex != 0 || listState.firstVisibleItemScrollOffset != 0) {
             listState.animateScrollToItem(0)
         }
@@ -55,25 +71,17 @@ fun LlibreListScreenTestable(
 
         Column(
             Modifier
-                .fillMaxSize()                 // ✅ BOUNDED HEIGHT
+                .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                SearchField(
-                    query = query,
-                    onQueryChange = { query = it },
-                    modifier = Modifier.weight(1f)
-                )
-                OrderDropdown(
-                    ordre = ordre,
-                    onOrdreChange = { ordre = it }
-                )
-            }
+            // Barra de cerca + desplegable d’ordre (inclou testTag "searchField" dins SearchField)
+            ListFiltersBar(
+                query = query,
+                onQueryChange = { query = it },
+                order = order,
+                onOrderChange = { order = it }
+            )
 
             Spacer(Modifier.height(8.dp))
 
@@ -81,7 +89,7 @@ fun LlibreListScreenTestable(
                 isRefreshing = loading,
                 onRefresh = onRefresh,
                 state = pullState,
-                modifier = Modifier.fillMaxSize()   // ✅ també bounded
+                modifier = Modifier.fillMaxSize()
             ) {
                 if (llistaMostrada.isEmpty()) {
                     Text(

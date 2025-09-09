@@ -1,0 +1,25 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="64dp"
+    android:height="96dp"
+    android:viewportWidth="64"
+    android:viewportHeight="96">
+    <!-- Fons -->
+    <path
+        android:fillColor="#EEEEEE"
+        android:pathData="M0,0h64v96h-64z"/>
+    <!-- Marc interior -->
+    <path
+        android:fillColor="#D6D6D6"
+        android:pathData="M4,4h56v88h-56z"/>
+    <!-- Franja superior (fa d’“encapçalament” de portada) -->
+    <path
+        android:fillColor="#C4C4C4"
+        android:pathData="M4,16h56v6h-56z"/>
+    <!-- Iconet de llibre estilitzat -->
+    <path
+        android:fillColor="#B0B0B0"
+        android:pathData="M18,34h28v2h-28z M18,40h28v2h-28z M18,46h22v2h-22z"/>
+    <path
+        android:fillColor="#BDBDBD"
+        android:pathData="M12,12h40v72h-40z"/>
+</vector>

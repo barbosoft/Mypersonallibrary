@@ -10,13 +10,16 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.work.WorkManager
 import coil.compose.AsyncImage
 import kotlinx.coroutines.launch
 import org.biblioteca.mypersonallibrary.data.Llibre
+import org.biblioteca.mypersonallibrary.data.sync.WishlistSyncWorker
 import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
 import org.biblioteca.mypersonallibrary.viewModel.WishlistViewModel   // 🆕
 
@@ -35,6 +38,9 @@ fun LlibreFormScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val focus = LocalFocusManager.current
     val scope = rememberCoroutineScope()
+
+    // Context per al WorkManager
+    val appContext = LocalContext.current.applicationContext
 
     // 👉 Quan arribem a la pantalla, amaguem el loader de navegació
     LaunchedEffect(Unit) { viewModel.endNav() }
@@ -188,9 +194,14 @@ fun LlibreFormScreen(
                         val actual = viewModel.llibre.value
                             ?: Llibre(isbn = normalizeIsbn(isbnInput)) // salvaguarda
 
+
                         if (perComprar) {
                             // 🆕 Desa a la wishlist i torna
                             wishlistVM.addFromCurrentBook(actual, notes)
+
+                            // 🔄 Sync immediat cap al backend
+                            WorkManager.getInstance(appContext)
+                                .enqueue(WishlistSyncWorker.oneOff())
                             onSave()
                         } else {
                             // Desa com a llibre normal

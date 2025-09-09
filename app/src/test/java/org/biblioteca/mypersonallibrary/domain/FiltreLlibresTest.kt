@@ -7,10 +7,10 @@ import org.junit.Test
 
 class FiltreLlibresTest {
     private val llibres = listOf(
-        Llibre(id=1, titol="Kotlin in Action", autor="Dmitry Jemerov", isbn="9781617293290"),
-        Llibre(id=2, titol="Effective Java", autor="Joshua Bloch", isbn="9780134685991"),
-        Llibre(id=3, titol="Clean Code", autor="Robert C. Martin", isbn="9780132350884"),
-        Llibre(id=4, titol="El Quixot", autor="Cervantes", isbn="9788491050292")
+        Llibre(id =1, titol ="Kotlin in Action", autor ="Dmitry Jemerov", isbn ="9781617293290"),
+        Llibre(id =2, titol ="Effective Java", autor ="Joshua Bloch", isbn ="9780134685991"),
+        Llibre(id =3, titol ="Clean Code", autor ="Robert C. Martin", isbn ="9780132350884"),
+        Llibre(id =4, titol ="El Quixot", autor ="Cervantes", isbn ="9788491050292")
     )
 
     @Test fun query_buida_retorna_original() {
