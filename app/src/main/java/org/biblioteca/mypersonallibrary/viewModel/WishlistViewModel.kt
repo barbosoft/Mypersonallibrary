@@ -92,8 +92,8 @@ class WishlistViewModel(
                 editorial = book.editorial,
                 edicio = book.edicio,
                 anyPublicacio = book.anyPublicacio,
-                //preuDesitjat = null,
-                //createdAt = System.currentTimeMillis()
+                preuDesitjat = null,
+                createdAt = System.currentTimeMillis()
             )
             repo.addOrUpdate(item)
         } finally {
