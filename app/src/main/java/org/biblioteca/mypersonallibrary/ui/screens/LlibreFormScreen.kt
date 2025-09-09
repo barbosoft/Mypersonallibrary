@@ -194,6 +194,7 @@ fun LlibreFormScreen(
                         val actual = viewModel.llibre.value
                             ?: Llibre(isbn = normalizeIsbn(isbnInput)) // salvaguarda
 
+
                         if (perComprar) {
                             // 🆕 Desa a la wishlist i torna
                             wishlistVM.addFromCurrentBook(actual, notes)

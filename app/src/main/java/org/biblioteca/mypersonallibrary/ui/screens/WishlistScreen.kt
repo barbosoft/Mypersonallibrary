@@ -51,6 +51,7 @@ fun WishlistScreen(
     wishlistVM: WishlistViewModel,
     llibresVM: LlibreViewModel,
     onBack: (() -> Unit)? = null
+
 ) {
     val items by wishlistVM.items.collectAsState()
     val loading by wishlistVM.loading.collectAsState()
@@ -85,13 +86,14 @@ fun WishlistScreen(
                         IconButton(onClick = it) {
                             Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Enrere")
                         }
+
                     }
                 }
             )
         }
     ) { padding ->
 
-        Column(
+      Column(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()

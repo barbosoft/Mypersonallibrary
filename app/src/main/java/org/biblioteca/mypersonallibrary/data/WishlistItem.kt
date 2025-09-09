@@ -15,4 +15,4 @@ data class WishlistItem(
     val anyPublicacio: String? = null,
     val preuDesitjat: Double? = null,
     val createdAt: Long = System.currentTimeMillis() // 👈 necessari per BY_RECENT
-)
+

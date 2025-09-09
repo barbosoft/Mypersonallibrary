@@ -49,7 +49,7 @@ fun LlibreListScreen(
     }
 
     Scaffold(
-        topBar = {
+topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Biblioteca") },
                 actions = {

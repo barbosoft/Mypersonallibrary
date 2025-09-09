@@ -121,6 +121,7 @@ private fun AppNavHost(
     nav: NavHostController,
     vm: LlibreViewModel,
     wishlistVM: WishlistViewModel,
+
     obrirEscaner: () -> Unit
 ) {
     // Overlay global “intel·ligent”
@@ -147,7 +148,7 @@ private fun AppNavHost(
                         vm.startNav()
                         nav.navigate(Screen.LlibreForm.route)
                     },
-                    onOpenWishList = {
+                    onOpenWishList = {                      // 👈 botó del carro
                         nav.navigate(Screen.Wishlist.route)
                     }
                 )
@@ -157,7 +158,7 @@ private fun AppNavHost(
                 LaunchedEffect(Unit) { vm.endNav() }
                 LlibreFormScreen(
                     viewModel = vm,
-                    wishlistVM = wishlistVM,
+                    wishlistVM = wishlistVM,               // 👈 FALTAVA aquest paràmetre
                     onSave = {
                         vm.startNav()
                         nav.popBackStack()
@@ -180,6 +181,7 @@ private fun AppNavHost(
                     }
                 )
             }
+
 
             composable(Screen.Wishlist.route) {
                 LaunchedEffect(Unit) { vm.endNav() }
