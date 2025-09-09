@@ -22,19 +22,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import org.biblioteca.mypersonallibrary.data.Llibre
-import org.biblioteca.mypersonallibrary.ui.components.FocusableTextField
 import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
-
-// Insets helpers (foundation.layout)
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.consumeWindowInsets
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.only
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,7 +36,7 @@ fun LlibreEditScreen(
     val loading by viewModel.loading.collectAsState()
     val missatge by viewModel.missatge.collectAsState()
 
-    // Oculta loader en arribar i si es desmunta
+    // Acabem “nav busy” en entrar i en sortir
     LaunchedEffect(Unit) { viewModel.endNav() }
     DisposableEffect(Unit) { onDispose { viewModel.endNav() } }
 
@@ -56,6 +45,7 @@ fun LlibreEditScreen(
         missatge?.let { snackbar.showSnackbar(it); viewModel.netejarMissatge() }
     }
 
+    // Si no hi ha llibre (o sense ID) oferim tornar
     if (llibre?.id == null) {
         Scaffold(topBar = { CenterAlignedTopAppBar({ Text("Editar llibre") }) }) { padding ->
             Column(Modifier.padding(padding).padding(16.dp)) {
@@ -67,11 +57,15 @@ fun LlibreEditScreen(
         return
     }
 
+    // Photo Picker (Android 13+ sense permís)
     val pickImage = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         uri?.let { viewModel.actualitzarCamp { (it ?: Llibre()).copy(imatgeUrl = uri.toString()) } }
     }
+
+    // Diàleg confirmació eliminar
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
@@ -94,16 +88,28 @@ fun LlibreEditScreen(
 
                 Button(
                     onClick = {
+                        // mentre desa i torna enrere, permetre mostrar overlay de nav si cal
                         viewModel.endNav()
                         viewModel.desarEdicio(onDone)
                     },
-                    enabled = !loading && llibre != null,
+                    enabled = !loading,
                     modifier = Modifier.weight(1f)
                 ) { Text("Desar canvis") }
+
+                // Botó eliminar (destructiu)
+                Button(
+                    onClick = { showDeleteDialog = true },
+                    enabled = !loading,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
+                ) { Text("Eliminar") }
             }
         }
     ) { innerPadding ->
 
+        // Llista scrollable per al formulari
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -114,24 +120,24 @@ fun LlibreEditScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            val cover = llibre?.imatgeUrl
-            if (!cover.isNullOrBlank()) {
-                item {
-                    AsyncImage(
-                        model = cover,
-                        contentDescription = "Caràtula actual",
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 160.dp, max = 260.dp)
-                            .semantics { contentDescription = "coverImage" }
-                    )
-                }
+            // --- Portada amb fallback / loading / error ---
+            item {
+                PortadaLlibre(
+                    imageUrl = llibre?.imatgeUrl,
+                    contentDescription = "Caràtula",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 160.dp, max = 260.dp)
+                )
             }
 
+            // Botons imatge
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     OutlinedButton(
                         onClick = {
                             pickImage.launch(
@@ -143,23 +149,25 @@ fun LlibreEditScreen(
 
                     OutlinedButton(
                         onClick = { viewModel.actualitzarCamp { (it ?: Llibre()).copy(imatgeUrl = null) } },
-                        enabled = !loading && !cover.isNullOrBlank()
+                        enabled = !loading && !llibre?.imatgeUrl.isNullOrBlank()
                     ) { Text("Treure imatge") }
                 }
             }
 
+            // Títol
             item {
                 var titol by rememberSaveable(llibre?.id) { mutableStateOf(llibre?.titol.orEmpty()) }
                 LaunchedEffect(llibre?.titol) { titol = llibre?.titol.orEmpty() }
 
-                FocusableTextField(
+                OutlinedTextField(
                     value = titol,
                     onValueChange = { v -> viewModel.actualitzarCamp { (it ?: Llibre()).copy(titol = v) } },
-                    label = "Títol",
+                    label = { Text("Títol") },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
 
+            // Autor
             item {
                 OutlinedTextField(
                     value = llibre?.autor.orEmpty(),
@@ -169,16 +177,18 @@ fun LlibreEditScreen(
                 )
             }
 
+            // ISBN (read-only en edició)
             item {
                 OutlinedTextField(
                     value = llibre?.isbn.orEmpty(),
-                    onValueChange = { },
+                    onValueChange = { /* noop */ },
                     readOnly = true,
                     label = { Text("ISBN") },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
 
+            // Editorial
             item {
                 OutlinedTextField(
                     value = llibre?.editorial.orEmpty(),
@@ -188,6 +198,7 @@ fun LlibreEditScreen(
                 )
             }
 
+            // Edició
             item {
                 OutlinedTextField(
                     value = llibre?.edicio.orEmpty(),
@@ -197,6 +208,7 @@ fun LlibreEditScreen(
                 )
             }
 
+            // Pàgines (numèric)
             item {
                 var paginesText by rememberSaveable(llibre?.id) {
                     mutableStateOf(llibre?.pagines?.toString().orEmpty())
@@ -221,6 +233,7 @@ fun LlibreEditScreen(
                 )
             }
 
+            // Idioma
             item {
                 OutlinedTextField(
                     value = llibre?.idioma.orEmpty(),
@@ -230,6 +243,7 @@ fun LlibreEditScreen(
                 )
             }
 
+            // Sinopsis
             item {
                 OutlinedTextField(
                     value = llibre?.sinopsis.orEmpty(),
@@ -239,6 +253,7 @@ fun LlibreEditScreen(
                 )
             }
 
+            // Llegit + comentari
             item {
                 val llegit = llibre?.llegit == true
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -269,6 +284,7 @@ fun LlibreEditScreen(
                 }
             }
 
+            // Valoració (0..5)
             item {
                 val rating = rememberSaveable(llibre?.id) { mutableStateOf(llibre?.puntuacio ?: 0) }
                 LaunchedEffect(llibre?.puntuacio) { rating.value = llibre?.puntuacio ?: 0 }
@@ -286,6 +302,26 @@ fun LlibreEditScreen(
 
             item { Spacer(Modifier.height(8.dp)) }
         }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Eliminar llibre") },
+            text = { Text("Segur que vols eliminar aquest llibre?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        llibre?.let { viewModel.eliminarLlibre(it) }
+                        onCancel()
+                    }
+                ) { Text("Eliminar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel·lar") }
+            }
+        )
     }
 }
 
@@ -305,10 +341,7 @@ private fun RatingBar(
     ) {
         (1..5).forEach { i ->
             val filled = i <= rating
-            val scale by animateFloatAsState(
-                targetValue = if (filled) 1.15f else 1f,
-                label = ""
-            )
+            val scale by animateFloatAsState(targetValue = if (filled) 1.15f else 1f, label = "")
             Icon(
                 imageVector = if (filled) Icons.Filled.Star else Icons.Outlined.Star,
                 contentDescription = "$i estrelles",

@@ -1,34 +1,23 @@
 package org.biblioteca.mypersonallibrary.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.ShoppingCart
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ShoppingCart
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import org.biblioteca.mypersonallibrary.data.Llibre
 import org.biblioteca.mypersonallibrary.domain.Ordre
-import org.biblioteca.mypersonallibrary.domain.filtreLlibres
-import org.biblioteca.mypersonallibrary.domain.ordenaLlibres
-import org.biblioteca.mypersonallibrary.ui.components.BooksList
-import org.biblioteca.mypersonallibrary.ui.components.OrderDropdown
-import org.biblioteca.mypersonallibrary.ui.components.SearchField
 import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
+import org.biblioteca.mypersonallibrary.ui.components.ListFiltersBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,100 +28,107 @@ fun LlibreListScreen(
     onOpenWishList: () -> Unit
 ) {
     val llibres by viewModel.totsElsLlibres.collectAsState()
-    val loading by viewModel.loading.collectAsState()
-    val missatge by viewModel.missatge.collectAsState()
-
-    val snackbar = remember { SnackbarHostState() }
-    LaunchedEffect(missatge) { missatge?.let { snackbar.showSnackbar(it); viewModel.netejarMissatge() } }
 
     var query by rememberSaveable { mutableStateOf("") }
-    var ordre by rememberSaveable { mutableStateOf(Ordre.AUTOR) }
+    var order by rememberSaveable { mutableStateOf(Ordre.RECENT) }
 
-    val llistaMostrada = remember(llibres, query, ordre) {
-        ordenaLlibres(filtreLlibres(llibres, query), ordre)
-    }
-
-    val pullState = rememberPullToRefreshState()
-    val listState = rememberLazyListState()
-
-    LaunchedEffect(ordre, query) {
-        if (listState.firstVisibleItemIndex != 0 || listState.firstVisibleItemScrollOffset != 0) {
-            listState.animateScrollToItem(0)
+    val filtered = remember(llibres, query, order) {
+        val q = query.trim().lowercase()
+        val base = if (q.isBlank()) llibres else llibres.filter { l ->
+            (l.titol?.contains(q, true) == true) ||
+                    (l.autor?.contains(q, true) == true) ||
+                    (l.isbn?.contains(q, true) == true) ||
+                    (l.idioma?.contains(q, true) == true)
+        }
+        when (order) {
+            Ordre.RECENT -> base.sortedByDescending { it.id ?: 0L }
+            Ordre.TITOL  -> base.sortedBy { it.titol ?: "~" }
+            Ordre.AUTOR  -> base.sortedBy { it.autor ?: "~" }
+            Ordre.ISBN   -> base.sortedBy { it.isbn ?: "~" }
         }
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Biblioteca") },
-        actions = {
-            IconButton(onClick = onOpenWishList) {
-                Icon(
-                    imageVector = Icons.Outlined.ShoppingCart,
-                    contentDescription = "Per comprar"
-                )
-            }
-        })},
-        floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    // 👉 Mostra loader mentre naveguem al formulari de creació
-                    viewModel.endNav()
-                    onNouLlibre()
-                    //viewModel.endNav()
+                actions = {
+                    IconButton(onClick = onOpenWishList) {
+                        Icon(Icons.Outlined.ShoppingCart, contentDescription = "Per comprar")
+                    }
                 }
-            ) { Text("+") } }
+            )
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onNouLlibre) {
+                Icon(Icons.Outlined.Add, contentDescription = "Afegir")
+            }
+        }
     ) { padding ->
 
         Column(
-            Modifier
-                .fillMaxSize()                 // ✅ BOUNDED HEIGHT
+            modifier = Modifier
                 .padding(padding)
-                .padding(16.dp)
+                .fillMaxSize()
         ) {
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                SearchField(
-                    query = query,
-                    onQueryChange = { query = it },
-                    modifier = Modifier.weight(1f)
-                )
-                OrderDropdown(
-                    ordre = ordre,
-                    onOrdreChange = { ordre = it }
-                )
+            // 🔁 Mateix component de filtres que a la Wishlist
+            ListFiltersBar(
+                query = query,
+                onQueryChange = { query = it },
+                order = order,
+                onOrderChange = { order = it }
+            )
+
+            if (filtered.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("No hi ha llibres per mostrar.")
+                }
+            } else {
+                LazyColumn(
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(filtered, key = { it.id ?: it.hashCode().toLong() }) { l ->
+                        LlibreRow(l, onClick = { onEdit(l) })
+                    }
+                }
             }
+        }
+    }
+}
 
-            Spacer(Modifier.height(8.dp))
+@Composable
+private fun LlibreRow(l: Llibre, onClick: () -> Unit) {
+    ElevatedCard(
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Row(Modifier.padding(12.dp)) {
 
-            PullToRefreshBox(
-                isRefreshing = loading,
-                onRefresh = { viewModel.carregaTots() },
-                state = pullState,
-                modifier = Modifier.fillMaxSize()   // ✅ també bounded
-            ) {
-                if (llistaMostrada.isEmpty()) {
-                    Text(
-                        text = if (query.isBlank()) "No hi ha llibres." else "Cap resultat per \"$query\"",
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.padding(16.dp)
-                    )
-                } else {
-                    BooksList(
-                        llibres = llistaMostrada,
-                        onEdit = { l ->
-                            // 👉 Mostra loader mentre naveguem a la pantalla d’edició
-                            viewModel.obrirLlibre(l)
-                            viewModel.endNav()
-                            onEdit(l)
-                        },
-                        onEliminar = { l -> viewModel.eliminarLlibre(l) },
-                        listState = listState
-                    )
+            // ✅ ÚNIC CANVI: fem servir PortadaLlibre amb fallback “Sense portada”
+            PortadaLlibre(
+                imageUrl = l.imatgeUrl,
+                contentDescription = "Caràtula",
+                modifier = Modifier
+                    .size(80.dp)
+                    .padding(end = 12.dp)
+            )
+
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = l.titol ?: "(Sense títol)",
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                l.autor?.let {
+                    Text(it, style = MaterialTheme.typography.bodyMedium)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    l.isbn?.let { Text("ISBN: $it", style = MaterialTheme.typography.bodySmall) }
+                    l.idioma?.let { Text("· $it", style = MaterialTheme.typography.bodySmall) }
+                    l.pagines?.takeIf { it > 0 }?.let {
+                        Text("· ${it}p", style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             }
         }

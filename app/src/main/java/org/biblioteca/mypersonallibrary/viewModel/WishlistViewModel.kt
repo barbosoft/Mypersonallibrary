@@ -2,85 +2,106 @@ package org.biblioteca.mypersonallibrary.viewModel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import org.biblioteca.mypersonallibrary.data.Llibre
+import org.biblioteca.mypersonallibrary.data.WishlistItem
+import org.biblioteca.mypersonallibrary.data.WishlistRepositoryHybrid
+import kotlin.comparisons.nullsLast // 👈 per compareBy amb CASE_INSENSITIVE_ORDER
 
-data class WishlistItem(
-    val id: Long? = null,
-    val titol: String? = null,
-    val autor: String? = null,
-    val isbn: String? = null,
-    val sinopsis: String? = null,
-    val notes: String? = null
-)
+// --- Criteri d’ordre de la wishlist
+enum class WishlistOrder { BY_TITLE, BY_AUTHOR, BY_RECENT }
 
-class WishlistViewModel : ViewModel() {
+class WishlistViewModel(
+    // ✅ ara el repo ve per constructor (veuràs la factory a sota)
+    private val repo: WishlistRepositoryHybrid
+) : ViewModel() {
 
-    private val _items = MutableStateFlow<List<WishlistItem>>(emptyList())
-    val items: StateFlow<List<WishlistItem>> = _items
+    // Flux d’items persistits al repositori
+    val items: StateFlow<List<WishlistItem>> =
+        repo.observeAll().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    // Estat UI
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading
 
-    /** ---- HELPERS ---- */
+    private val _query = MutableStateFlow("")
+    val query: StateFlow<String> = _query
 
-    /** Genera un ID positiu per a nous elements en memòria. */
-    private fun newId(): Long = System.nanoTime() and Long.MAX_VALUE
+    private val _order = MutableStateFlow(WishlistOrder.BY_TITLE)
+    val order: StateFlow<WishlistOrder> = _order
 
-    /** Neteja cadenes buides/espais a null. */
-    private fun String?.clean(): String? =
-        this?.trim()?.takeIf { it.isNotEmpty() }
-
-    /** ---- ACCIONS PRINCIPALS ---- */
-
-    /**
-     * Afegeix (o actualitza) un element a la wishlist.
-     * Si `item.id` és null se li assigna un id nou.
-     */
-    fun add(item: WishlistItem) = viewModelScope.launch {
-        val id = item.id ?: newId()
-        _items.value = _items.value
-            .filterNot { it.id == id }
-            .plus(item.copy(id = id))
-    }
-
-    /** Elimina per id. */
-    fun remove(id: Long) = viewModelScope.launch {
-        _items.value = _items.value.filterNot { it.id == id }
-    }
-
-    /**
-     * 👉 Des del formulari de “Nou llibre”: construeix un WishlistItem a partir del [Llibre]
-     * (i opcionalment [notes]) i l’afegeix a la llista. Si ja n’hi ha un amb el mateix ISBN,
-     * es reemplaça (merge senzill).
-     */
-    fun addFromCurrentBook(book: Llibre, notes: String? = null, onAdded: (() -> Unit)? = null) =
-        viewModelScope.launch {
-            val item = WishlistItem(
-                id = newId(),
-                titol = book.titol.clean(),
-                autor = book.autor.clean(),
-                isbn = book.isbn.clean(),
-                sinopsis = book.sinopsis.clean(),
-                notes = notes.clean()
-            )
-
-            val isbn = item.isbn?.lowercase()
-            _items.value = if (isbn != null) {
-                // Evita duplicats per ISBN: reemplaça l’existent
-                _items.value.filterNot { it.isbn?.lowercase() == isbn } + item
-            } else {
-                _items.value + item
+    // Llista visible = items filtrats + ordenats
+    val visibleItems: StateFlow<List<WishlistItem>> =
+        combine(items, _query, _order) { list, q, ord ->
+            val qn = q.trim().lowercase()
+            val filtered = if (qn.isEmpty()) list else list.filter { it.matches(qn) }
+            when (ord) {
+                WishlistOrder.BY_TITLE  ->
+                    filtered.sortedWith(compareBy(nullsLast(String.CASE_INSENSITIVE_ORDER)) { it.titol ?: "" })
+                WishlistOrder.BY_AUTHOR ->
+                    filtered.sortedWith(compareBy(nullsLast(String.CASE_INSENSITIVE_ORDER)) { it.autor ?: "" })
+                WishlistOrder.BY_RECENT ->
+                    filtered.sortedByDescending { it.createdAt } // ✅ createdAt és Long
             }
-            onAdded?.invoke()
-        }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
-    /**
-     * Marca com “comprat”: converteix WishlistItem -> Llibre i lliura'l al callback `onCreate`,
-     * i elimina l’element de la llista.
-     */
+    // Helpers de filtre
+    private fun WishlistItem.matches(q: String): Boolean {
+        fun String?.m() = this?.lowercase()?.contains(q) == true
+        return titol.m() || autor.m() || isbn.m() || sinopsis.m() || notes.m()
+    }
+
+    fun setQuery(q: String) { _query.value = q }
+    fun setOrder(o: WishlistOrder) { _order.value = o }
+
+    /** Afegeix (o actualitza) un element a la wishlist */
+    fun add(item: WishlistItem) = viewModelScope.launch {
+        _loading.value = true
+        try {
+            repo.addOrUpdate(item)         // ✅ ara existeix
+        } finally {
+            _loading.value = false
+        }
+    }
+
+    /** Elimina per id */
+    fun remove(id: Long) = viewModelScope.launch {
+        _loading.value = true
+        try {
+            repo.remove(id)
+        } finally {
+            _loading.value = false
+        }
+    }
+
+    /** Afegeix a wishlist a partir d’un llibre actual del formulari */
+    fun addFromCurrentBook(book: Llibre, notes: String?) = viewModelScope.launch {
+        _loading.value = true
+        try {
+            val item = WishlistItem(
+                id = null,                        // es genera a mapper amb nanoTime()
+                titol = book.titol,
+                autor = book.autor,
+                isbn = book.isbn,
+                sinopsis = book.sinopsis,
+                notes = notes,
+                imatgeUrl = book.imatgeUrl,
+                idioma = book.idioma,
+                pagines = book.pagines,
+                editorial = book.editorial,
+                edicio = book.edicio,
+                anyPublicacio = book.anyPublicacio,
+                //preuDesitjat = null,
+                //createdAt = System.currentTimeMillis()
+            )
+            repo.addOrUpdate(item)
+        } finally {
+            _loading.value = false
+        }
+    }
+/*
+    /** Compra: converteix a Llibre i esborra de la wishlist */
     fun purchase(item: WishlistItem, onCreate: (Llibre) -> Unit) = viewModelScope.launch {
         _loading.value = true
         try {
@@ -89,13 +110,13 @@ class WishlistViewModel : ViewModel() {
                 titol = item.titol,
                 autor = item.autor,
                 isbn = item.isbn,
-                editorial = null,
-                edicio = null,
-                sinopsis = null,
-                pagines = null,
-                imatgeUrl = null,
-                anyPublicacio = null,
-                idioma = null,
+                editorial = item.editorial,
+                edicio = item.edicio,
+                sinopsis = item.sinopsis,
+                pagines = item.pagines,
+                imatgeUrl = item.imatgeUrl,
+                anyPublicacio = item.anyPublicacio,
+                idioma = item.idioma,
                 categoria = null,
                 ubicacio = null,
                 llegit = false,
@@ -103,7 +124,19 @@ class WishlistViewModel : ViewModel() {
                 puntuacio = null
             )
             onCreate(llibre)
-            item.id?.let { remove(it) }
+            item.id?.let { repo.remove(it) }
+        } finally {
+            _loading.value = false
+        }
+    }
+
+ */
+
+    fun purchase(item: WishlistItem, onCreate: (Llibre) -> Unit) = viewModelScope.launch {
+        _loading.value = true
+        try {
+            val llibre = repo.purchase(item.id ?: return@launch)  // 👈 compra remot + neteja local
+            onCreate(llibre) // la pantalla ja crida el VM de llibres per desar-lo a Room
         } finally {
             _loading.value = false
         }
