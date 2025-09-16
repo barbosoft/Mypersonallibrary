@@ -1,6 +1,6 @@
-package org.biblioteca.mypersonallibrary.data
+package org.biblioteca.mypersonallibrary.data.remote.dto
 
-data class WishlistItem(
+data class WishDto(
     val id: Long? = null,
     val titol: String? = null,
     val autor: String? = null,
@@ -14,5 +14,7 @@ data class WishlistItem(
     val edicio: String? = null,
     val anyPublicacio: String? = null,
     val preuDesitjat: Double? = null,
-    val createdAt: Long = System.currentTimeMillis() // 👈 necessari per BY_RECENT
+    val createdAt: Long? = null,
+    val updatedAt: Long? = null,
+    val isDeleted: Boolean? = null
 )

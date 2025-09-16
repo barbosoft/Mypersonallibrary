@@ -1,0 +1,115 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "80f40138d54da4711ddc41227372c0ff",
+    "entities": [
+      {
+        "tableName": "wishlist",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `titol` TEXT, `autor` TEXT, `isbn` TEXT, `sinopsis` TEXT, `notes` TEXT, `imatgeUrl` TEXT, `idioma` TEXT, `pagines` INTEGER, `editorial` TEXT, `edicio` TEXT, `anyPublicacio` TEXT, `preuDesitjat` REAL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `pendingSync` INTEGER NOT NULL, `deleted` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "titol",
+            "columnName": "titol",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "autor",
+            "columnName": "autor",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isbn",
+            "columnName": "isbn",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "sinopsis",
+            "columnName": "sinopsis",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "imatgeUrl",
+            "columnName": "imatgeUrl",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "idioma",
+            "columnName": "idioma",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pagines",
+            "columnName": "pagines",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "editorial",
+            "columnName": "editorial",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "edicio",
+            "columnName": "edicio",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "anyPublicacio",
+            "columnName": "anyPublicacio",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "preuDesitjat",
+            "columnName": "preuDesitjat",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pendingSync",
+            "columnName": "pendingSync",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deleted",
+            "columnName": "deleted",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '80f40138d54da4711ddc41227372c0ff')"
+    ]
+  }
+}

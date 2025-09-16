@@ -30,6 +30,9 @@ interface BibliotecaApi {
     @GET("wishlist")
     suspend fun getWishlist(): List<WishlistItem>
 
+    @GET("wishlist")
+    suspend fun getTotsElsLlibresPerComprar(): List<Llibre>
+
     @POST("wishlist")
     suspend fun addWishlist(@Body item: WishlistItem): WishlistItem
 
