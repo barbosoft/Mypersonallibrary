@@ -5,34 +5,19 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(
-    entities = [WishlistEntity::class, LlibreEntity::class],
-    version = 4,
-    exportSchema = false
-)
+@Database(entities = [WishlistEntity::class], version = 1, exportSchema = true)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun wishlistDao(): WishlistDao
-    abstract fun llibreDao(): LlibreDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
-
-        fun get(context: Context): AppDatabase {
-            return INSTANCE ?: synchronized(this) {
+        fun get(context: Context): AppDatabase =
+            INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "biblioteca.db"
-                )
-                    // Si no tens migracions encara, millor destruir i recrear
-                    // (evita crashes en esquemes nous durant el desenvolupament)
-                    .fallbackToDestructiveMigration()
-                    .build()
-                    .also { INSTANCE = it }
+                ).build().also { INSTANCE = it }
             }
-        }
     }
 }
-
-
-
