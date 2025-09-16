@@ -23,6 +23,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import org.biblioteca.mypersonallibrary.data.Llibre
+import org.biblioteca.mypersonallibrary.ui.components.PortadaLlibre
 import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -123,7 +124,7 @@ fun LlibreEditScreen(
             // --- Portada amb fallback / loading / error ---
             item {
                 PortadaLlibre(
-                    imageUrl = llibre?.imatgeUrl,
+                    imatgeUrl = llibre?.imatgeUrl,
                     contentDescription = "Caràtula",
                     contentScale = ContentScale.Fit,
                     modifier = Modifier
@@ -313,7 +314,7 @@ fun LlibreEditScreen(
                 TextButton(
                     onClick = {
                         showDeleteDialog = false
-                        llibre?.let { viewModel.eliminarLlibre(it) }
+                        llibre?.let { viewModel.delete(it) }
                         onCancel()
                     }
                 ) { Text("Eliminar") }

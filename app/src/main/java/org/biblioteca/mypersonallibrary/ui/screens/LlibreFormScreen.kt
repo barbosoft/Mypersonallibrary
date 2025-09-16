@@ -35,9 +35,25 @@ fun LlibreFormScreen(
     val missatge by viewModel.missatge.collectAsState()
     val loading by viewModel.loading.collectAsState()
 
+    //Wishlist
+    val libraryIsbnsRaw by viewModel.libraryIsbns.collectAsState()   // Set<String> (pot venir amb guions/minúscules)
+    val libraryIsbns = remember(libraryIsbnsRaw) {
+        libraryIsbnsRaw.map { normalizeIsbn(it) }.toSet()
+    }
+    val wishlistItems by wishlistVM.items.collectAsState()               // List<WishlistItem>
+    val wishlistIsbns = remember(wishlistItems) {                        // Set<String>
+        wishlistItems.mapNotNull { it.isbn }.toSet()
+    }
+
+
     val snackbarHostState = remember { SnackbarHostState() }
     val focus = LocalFocusManager.current
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        launch { wishlistVM.snackbar.collect { snackbarHostState.showSnackbar(it) } }
+        launch { viewModel.snackbar.collect { snackbarHostState.showSnackbar(it) } } // si també l'uses
+    }
 
     // Context per al WorkManager
     val appContext = LocalContext.current.applicationContext
@@ -188,34 +204,46 @@ fun LlibreFormScreen(
 
                 // Desar (habilitat si tenim ISBN)
                 val potDesar = !loading && !(llibre?.isbn.isNullOrBlank())
+
                 Button(
                     onClick = {
                         viewModel.endNav()
-                        val actual = viewModel.llibre.value
-                            ?: Llibre(isbn = normalizeIsbn(isbnInput)) // salvaguarda
 
+                        val base = viewModel.llibre.value ?: Llibre(isbn = normalizeIsbn(isbnInput))
+                        // ISBN net; si no hi ha al model, usa el camp de text
+                        val normalized = normalizeIsbn(base.isbn?.takeIf { it.isNotBlank() } ?: isbnInput)
 
                         if (perComprar) {
-                            // 🆕 Desa a la wishlist i torna
-                            wishlistVM.addFromCurrentBook(actual, notes)
-
-                            // 🔄 Sync immediat cap al backend
-                            WorkManager.getInstance(appContext)
-                                .enqueue(WishlistSyncWorker.oneOff())
-                            onSave()
+                            // Deixa que el VM gestioni duplicats i missatges
+                            wishlistVM.addFromCurrentBook(
+                                book = base.copy(isbn = normalized),
+                                notes = notes,
+                                libraryIsbns = libraryIsbns
+                            ) { added ->
+                                if (added) {
+                                    WorkManager.getInstance(appContext)
+                                        .enqueue(WishlistSyncWorker.oneOff())
+                                    onSave()
+                                }
+                            }
                         } else {
-                            // Desa com a llibre normal
-                            viewModel.guardarLlibre(actual) {
-                                viewModel.netejarEdicio()
-                                onSave()
+                            if (normalized in libraryIsbns) {
+                                // ja existeix a la biblioteca → només avisa
+                                scope.launch { snackbarHostState.showSnackbar("Ja és a la biblioteca") }
+                            } else {
+                                viewModel.guardarLlibre(base.copy(isbn = normalized)) {
+                                    viewModel.netejarEdicio()
+                                    onSave()
+                                }
                             }
                         }
                     },
                     enabled = potDesar,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(if (perComprar) "Desar a compra" else "Desar llibre")   // 🆕 etiqueta dinàmica
+                    Text(if (perComprar) "Desar a compra" else "Desar llibre")
                 }
+
 
                 Button(
                     onClick = {

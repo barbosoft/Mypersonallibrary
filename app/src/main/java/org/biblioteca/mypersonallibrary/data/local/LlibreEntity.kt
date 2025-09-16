@@ -1,15 +1,17 @@
-package org.biblioteca.mypersonallibrary.data.remote.dto
+package org.biblioteca.mypersonallibrary.data.local
 
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 import org.biblioteca.mypersonallibrary.data.Llibre
-import org.biblioteca.mypersonallibrary.data.local.LlibreEntity
 
-data class LlibreDto(
-    val id: Long? = null,
+@Entity(tableName = "llibre")
+data class LlibreEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long? = null,
     val titol: String? = null,
     val autor: String? = null,
-    val isbn: String? = null,
     val editorial: String? = null,
     val edicio: String? = null,
+    val isbn: String? = null,
     val sinopsis: String? = null,
     val pagines: Int? = null,
     val imatgeUrl: String? = null,
@@ -20,16 +22,38 @@ data class LlibreDto(
     val llegit: Boolean? = null,
     val comentari: String? = null,
     val puntuacio: Int? = null,
-    val updatedAt: Long? = null
+    /** → clau per ordenar per RECENT */
+    val updatedAt: Long = System.currentTimeMillis()
 )
 
-fun LlibreDto.toDomain(): Llibre = Llibre(
+// Mappers
+fun LlibreEntity.toDomain(): Llibre = Llibre(
     id = id,
     titol = titol,
     autor = autor,
-    isbn = isbn,
     editorial = editorial,
     edicio = edicio,
+    isbn = isbn,
+    sinopsis = sinopsis,
+    pagines = pagines,
+    imatgeUrl = imatgeUrl,
+    anyPublicacio = anyPublicacio,
+    idioma = idioma,
+    categoria = categoria,
+    ubicacio = ubicacio,
+    llegit = llegit,
+    comentari = comentari,
+    puntuacio = puntuacio,
+    updatedAt = updatedAt
+)
+
+fun Llibre.toEntity(): LlibreEntity = LlibreEntity(
+    id = id,
+    titol = titol,
+    autor = autor,
+    editorial = editorial,
+    edicio = edicio,
+    isbn = isbn,
     sinopsis = sinopsis,
     pagines = pagines,
     imatgeUrl = imatgeUrl,
@@ -41,44 +65,4 @@ fun LlibreDto.toDomain(): Llibre = Llibre(
     comentari = comentari,
     puntuacio = puntuacio,
     updatedAt = updatedAt ?: System.currentTimeMillis()
-)
-
-fun Llibre.toDto(): LlibreDto = LlibreDto(
-    id = id,
-    titol = titol,
-    autor = autor,
-    isbn = isbn,
-    editorial = editorial,
-    edicio = edicio,
-    sinopsis = sinopsis,
-    pagines = pagines,
-    imatgeUrl = imatgeUrl,
-    anyPublicacio = anyPublicacio,
-    idioma = idioma,
-    categoria = categoria,
-    ubicacio = ubicacio,
-    llegit = llegit ?: false,
-    comentari = comentari,
-    puntuacio = puntuacio,
-    updatedAt = updatedAt ?: System.currentTimeMillis()
-)
-
-fun LlibreDto.toEntity(): LlibreEntity = LlibreEntity(
-    id            = id ?: 0L,
-    titol         = titol ?: "",
-    autor         = autor ?: "",
-    isbn          = isbn ?: "",
-    editorial     = editorial,
-    edicio        = edicio,
-    sinopsis      = sinopsis,
-    pagines       = pagines ?: 0,
-    imatgeUrl     = imatgeUrl,
-    anyPublicacio = anyPublicacio,
-    idioma        = idioma,
-    categoria     = categoria,
-    ubicacio      = ubicacio,
-    llegit        = llegit ?: false,
-    comentari     = comentari,
-    puntuacio     = puntuacio ?: 0,
-    updatedAt     = updatedAt ?: System.currentTimeMillis()
 )

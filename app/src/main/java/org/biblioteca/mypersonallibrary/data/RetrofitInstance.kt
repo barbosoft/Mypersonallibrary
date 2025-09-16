@@ -1,6 +1,7 @@
 package org.biblioteca.mypersonallibrary.data
 
 import android.util.Log
+import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -15,20 +16,7 @@ import java.util.concurrent.TimeUnit
 object RetrofitInstance {
 
     // Emulador: "http://10.0.2.2:8080/"
-    private const val BASE_URL = "http://192.168.1.145:8080/"
-
-    fun wishlistApi(baseUrl: String = BASE_URL): WishlistApi {
-        return Retrofit.Builder()
-            .baseUrl(baseUrl)
-            .client(client)
-            .addConverterFactory(
-                GsonConverterFactory.create(
-                    GsonBuilder().setPrettyPrinting().create()
-                )
-            )
-            .build()
-            .create(WishlistApi::class.java)
-    }
+    private const val BASE_URL = "http://192.168.1.145:8080/api/"
 
     // Pretty print si el missatge és JSON
     private fun prettyJsonIfPossible(message: String): String = try {
@@ -59,13 +47,30 @@ object RetrofitInstance {
             .build()
     }
 
-    // Gson configurat
+   /* // Gson configurat
     private val gson by lazy {
         GsonBuilder()
             .serializeNulls()   // conserva nulls si cal
             .setLenient()       // permissiu amb JSON irregular
             .create()
     }
+
+    */
+   // --------- Gson compartit amb l’adapter de Long/ISO ----------
+   private val gson: Gson by lazy {
+       val longAdapter = LongFromStringOrIsoInstantAdapter()
+
+       GsonBuilder()
+           .serializeNulls()
+           .setLenient()
+           // IMPORTANT: registrar per a Long (boxed) i per al primitive long
+           .registerTypeAdapter(java.lang.Long::class.java, longAdapter)
+           .registerTypeAdapter(java.lang.Long.TYPE, longAdapter)
+           // (opcional) pretty printing als logs
+           .setPrettyPrinting()
+           .create()
+   }
+
 
     private val retrofit: Retrofit by lazy {
         Retrofit.Builder()

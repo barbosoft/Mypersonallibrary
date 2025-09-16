@@ -23,7 +23,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import org.biblioteca.mypersonallibrary.data.Llibre
-import org.biblioteca.mypersonallibrary.ui.screens.PortadaLlibre
+import org.biblioteca.mypersonallibrary.ui.components.PortadaLlibre
 import androidx.compose.ui.draw.clip
 
 /**
@@ -85,7 +85,7 @@ private fun BookRow(
         ) {
             // ------- Portada amb fallback integrat -------
             PortadaLlibre(
-                imageUrl = llibre.imatgeUrl,
+                imatgeUrl = llibre.imatgeUrl,
                 contentDescription = "Portada — ${llibre.titol ?: "Sense títol"}",
                 modifier = Modifier
                     .size(64.dp)

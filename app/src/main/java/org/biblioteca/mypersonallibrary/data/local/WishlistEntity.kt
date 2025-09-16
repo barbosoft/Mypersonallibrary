@@ -5,7 +5,9 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "wishlist")
 data class WishlistEntity(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0L,
+    @PrimaryKey(autoGenerate = true)
+    //val id: Long = 0L,
+    val id: Long? = null,
     val titol: String? = null,
     val autor: String? = null,
     val isbn: String? = null,

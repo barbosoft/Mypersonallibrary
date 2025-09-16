@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.Button
@@ -23,8 +24,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,12 +40,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.work.WorkManager
-import coil.compose.AsyncImage
 import org.biblioteca.mypersonallibrary.data.WishlistItem
-import org.biblioteca.mypersonallibrary.data.sync.WishlistSyncWorker
 import org.biblioteca.mypersonallibrary.domain.Ordre
+import org.biblioteca.mypersonallibrary.ui.components.DiagonalRibbon
 import org.biblioteca.mypersonallibrary.ui.components.ListFiltersBar
+import org.biblioteca.mypersonallibrary.ui.components.PortadaLlibre
 import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
 import org.biblioteca.mypersonallibrary.viewModel.WishlistViewModel
 
@@ -51,7 +54,6 @@ fun WishlistScreen(
     wishlistVM: WishlistViewModel,
     llibresVM: LlibreViewModel,
     onBack: (() -> Unit)? = null
-
 ) {
     val items by wishlistVM.items.collectAsState()
     val loading by wishlistVM.loading.collectAsState()
@@ -60,7 +62,7 @@ fun WishlistScreen(
     var order by rememberSaveable { mutableStateOf(Ordre.RECENT) }
 
     val filtered = remember(items, query, order) {
-        val q = query.trim().lowercase()
+        val q = query.trim()
         val base = if (q.isBlank()) items else items.filter {
             it.titol?.contains(q, true) == true ||
                     it.autor?.contains(q, true) == true ||
@@ -69,15 +71,30 @@ fun WishlistScreen(
         when (order) {
             Ordre.RECENT -> base.sortedByDescending { it.id ?: 0L }
             Ordre.TITOL  -> base.sortedBy { it.titol ?: "~" }
-            Ordre.AUTOR -> base.sortedBy { it.autor ?: "~" }
-            Ordre.ISBN -> base.sortedBy { it.isbn ?: "~"}
+            Ordre.AUTOR  -> base.sortedBy { it.autor ?: "~" }
+            Ordre.ISBN   -> base.sortedBy { it.isbn ?: "~" }
         }
     }
 
-    // 🔄 Context per al WorkManager
+    // Snackbar: escolta els missatges que emet la VM
+    val snackbarHost = remember { SnackbarHostState() }
+    LaunchedEffect(Unit) {
+        wishlistVM.snackbar.collect { msg -> snackbarHost.showSnackbar(msg) }
+    }
+
+    // Per saber què ja tenim a la biblioteca i mostrar la cinta
+    val libraryIsbns by llibresVM.libraryIsbns.collectAsState()
+    val already = remember(libraryIsbns) { { isbn: String? -> isbn != null && libraryIsbns.contains(isbn) } }
+
+    // Scroll a dalt quan canvien filtres/llista
+    val listState = rememberLazyListState()
+    LaunchedEffect(query, order, filtered.size) { listState.scrollToItem(0) }
+
+    // WorkManager
     val appContext = LocalContext.current.applicationContext
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHost) },
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Per comprar") },
@@ -86,19 +103,17 @@ fun WishlistScreen(
                         IconButton(onClick = it) {
                             Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Enrere")
                         }
-
                     }
                 }
             )
         }
     ) { padding ->
-
-      Column(
+        Column(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            // 🔁 Mateix component de filtres que a la llista principal
+            // Barra de filtres/ordre (mateixa que a la llista principal)
             ListFiltersBar(
                 query = query,
                 onQueryChange = { query = it },
@@ -107,10 +122,7 @@ fun WishlistScreen(
             )
 
             if (filtered.isEmpty()) {
-                Box(
-                    Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text(
                         "No tens cap element a la llista de desitjos.\n" +
                                 "Afegeix-ne des del formulari amb “Per comprar”."
@@ -118,30 +130,45 @@ fun WishlistScreen(
                 }
             } else {
                 LazyColumn(
+                    state = listState,
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(filtered, key = { it.id ?: it.hashCode().toLong() }) { it ->
+                    items(filtered, key = { it.id ?: it.hashCode().toLong() }) { item ->
                         WishlistItemCard(
-                            item = it,
+                            item = item,
                             loading = loading,
-                            onBuy = { item ->
-                                wishlistVM.purchase(item) { llibre ->
-                                    // desa al backend via VM principal
-                                    llibresVM.guardarLlibre(llibre) {
-                                        // sense navegació aquí; només feedback/refresh intern
+                            alreadyInLibrary = already(item.isbn),
+                            onBuy = { wish ->
+                                if (already(wish.isbn)) {
+                                    wishlistVM.toast("Ja és a la biblioteca")
+                                } else {
+                                    // La VM fa el purchase -> elimina de wishlist.
+                                    wishlistVM.purchase(wish) { llibreCreat ->
+                                        // Desa el llibre a la biblioteca
+                                        llibresVM.guardarLlibre(llibreCreat)
+                                        wishlistVM.toast("Afegit a la biblioteca: ${llibreCreat.titol ?: ""}")
+                                        //llibresVM.refreshAll()
+                                        wishlistVM.syncAra(appContext)
+                                        //llibresVM.carregaTots()
                                     }
                                 }
-                                // 🔄 Sync immediat (push delete de wishlist i, si cal, pull)
+
+
+                                /*
+                                // One-off sync (push/delete + pull)
                                 WorkManager.getInstance(appContext)
                                     .enqueue(WishlistSyncWorker.oneOff())
+
+                                 */
                             },
-                            onRemove = { id ->
-                                wishlistVM.remove(id)
-                                wishlistVM.remove(id)
-                                // 🔄 Sync immediat per propagar l’eliminació
-                                WorkManager.getInstance(appContext)
+                            onDelete = { wish ->
+                                wishlistVM.delete(wish)
+                                wishlistVM.syncAra(appContext)
+                                /*WorkManager.getInstance(appContext)
                                     .enqueue(WishlistSyncWorker.oneOff())
+
+                                 */
                             }
                         )
                     }
@@ -155,18 +182,32 @@ fun WishlistScreen(
 private fun WishlistItemCard(
     item: WishlistItem,
     loading: Boolean,
+    alreadyInLibrary: Boolean,
     onBuy: (WishlistItem) -> Unit,
-    onRemove: (Long) -> Unit
+    onDelete: (WishlistItem) -> Unit
 ) {
     ElevatedCard {
         Row(Modifier.padding(12.dp)) {
-            AsyncImage(
-                model = item.imatgeUrl,
+
+            // Caràtula amb la cinta en diagonal si ja existeix a la biblioteca
+            val coverSize = 80.dp
+            PortadaLlibre(
+                imatgeUrl = item.imatgeUrl,
                 contentDescription = "Caràtula",
                 modifier = Modifier
-                    .size(80.dp)
-                    .padding(end = 12.dp)
+                    .size(coverSize)
+                    .padding(end = 12.dp),
+                overlay = {
+                    if (alreadyInLibrary) {
+                        DiagonalRibbon(
+                            text = "COMPRAT",
+                            coverSize = coverSize,
+                            modifier = Modifier.align(Alignment.Center)  // centrat i creuant tot
+                        )
+                    }
+                }
             )
+
 
             Column(Modifier.weight(1f)) {
                 Text(
@@ -175,30 +216,17 @@ private fun WishlistItemCard(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                item.autor?.let {
-                    Text(it, style = MaterialTheme.typography.bodyMedium)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    item.isbn?.let { Text("ISBN: $it", style = MaterialTheme.typography.bodySmall) }
-                    item.idioma?.let { Text("· $it", style = MaterialTheme.typography.bodySmall) }
-                    item.pagines?.takeIf { it > 0 }?.let {
-                        Text("· ${it}p", style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-                item.notes?.takeIf { it.isNotBlank() }?.let {
-                    Spacer(Modifier.height(4.dp))
-                    Text(it, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
-                }
+                item.autor?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
 
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(
                         onClick = { onBuy(item) },
-                        enabled = !loading
+                        enabled = !loading && !alreadyInLibrary
                     ) { Text("Comprat") }
 
                     OutlinedButton(
-                        onClick = { item.id?.let(onRemove) },
+                        onClick = { onDelete(item) },
                         enabled = !loading
                     ) { Text("Eliminar") }
                 }

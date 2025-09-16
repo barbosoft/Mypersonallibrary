@@ -3,6 +3,9 @@ package org.biblioteca.mypersonallibrary.ui.screens
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
@@ -18,6 +21,11 @@ import org.biblioteca.mypersonallibrary.data.Llibre
 import org.biblioteca.mypersonallibrary.domain.Ordre
 import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
 import org.biblioteca.mypersonallibrary.ui.components.ListFiltersBar
+import org.biblioteca.mypersonallibrary.ui.components.PortadaLlibre
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,6 +36,11 @@ fun LlibreListScreen(
     onOpenWishList: () -> Unit
 ) {
     val llibres by viewModel.totsElsLlibres.collectAsState()
+
+    // 1) Pull inicial en obrir la pantalla
+    LaunchedEffect(Unit) {
+        viewModel.refreshAll()
+    }
 
     var query by rememberSaveable { mutableStateOf("") }
     var order by rememberSaveable { mutableStateOf(Ordre.RECENT) }
@@ -46,6 +59,26 @@ fun LlibreListScreen(
             Ordre.AUTOR  -> base.sortedBy { it.autor ?: "~" }
             Ordre.ISBN   -> base.sortedBy { it.isbn ?: "~" }
         }
+    }
+
+    // endreçar llistat automàticament
+    val listState = rememberLazyListState()
+
+    // cada canvi d'ítem o de filtre ho posa a dalt
+    LaunchedEffect(query, order, filtered.size) {
+        listState.scrollToItem(0)
+    }
+
+    // 2) Pull cada cop que la pantalla torna al davant (back, després d’editar, després de “comprar”, etc.)
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshAll()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     Scaffold(
@@ -85,6 +118,7 @@ topBar = {
                 }
             } else {
                 LazyColumn(
+                    state = listState,
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -106,7 +140,7 @@ private fun LlibreRow(l: Llibre, onClick: () -> Unit) {
 
             // ✅ ÚNIC CANVI: fem servir PortadaLlibre amb fallback “Sense portada”
             PortadaLlibre(
-                imageUrl = l.imatgeUrl,
+                imatgeUrl = l.imatgeUrl,
                 contentDescription = "Caràtula",
                 modifier = Modifier
                     .size(80.dp)
