@@ -1,46 +1,47 @@
 package org.biblioteca.mypersonallibrary.data
 
+import org.biblioteca.mypersonallibrary.data.remote.dto.LlibreDto
+import org.biblioteca.mypersonallibrary.data.remote.dto.WishDto
 import retrofit2.Response
 import retrofit2.http.*
 
 interface BibliotecaApi {
 
-    @GET("api/llibres/fetch/{isbn}")
-    suspend fun fetchByIsbn(@Path("isbn") isbn: String): Response<Llibre>
+    // ---------- Llibres ----------
+    @GET("llibres")
+    suspend fun getTotsElsLlibres(): List<LlibreDto>
 
-    @POST("api/llibres")
-    suspend fun createLlibre(@Body llibre: Llibre): Response<Llibre>
+    @GET("llibres/fetch/{isbn}")
+    suspend fun fetchByIsbn(@Path("isbn") isbn: String): Response<LlibreDto>
 
-    @GET("api/llibres/autor/{autor}")
-    suspend fun getByAutor(@Path("autor") autor: String): Response<Llibre>
+    @POST("llibres")
+    suspend fun createLlibre(@Body dto: LlibreDto): Response<LlibreDto>
 
-    @GET("api/llibres")
-    suspend fun getAll(): Response<List<Llibre>>
+    @PUT("llibres/{id}")
+    suspend fun actualitzarLlibre(@Path("id") id: Long, @Body dto: LlibreDto): LlibreDto
 
-    @GET("api/llibres")
-    suspend fun getTotsElsLlibres(): List<Llibre>
-
-    @DELETE("api/llibres/{id}")
+    @DELETE("llibres/{id}")
     suspend fun deleteLlibre(@Path("id") id: Long): Response<Unit>
 
-    @PUT("api/llibres/{id}")
-    suspend fun actualitzarLlibre(@Path("id") id: Long, @Body llibre: Llibre): Llibre
+    @GET("llibres/autor/{autor}")
+    suspend fun getByAutor(@Path("autor") autor: String): List<LlibreDto>
 
-    // endpoints Wishlist
+    // ---------- Wishlist ----------
     @GET("wishlist")
-    suspend fun getWishlist(): List<WishlistItem>
+    suspend fun getWishlist(): List<WishDto>
 
-    @GET("wishlist")
-    suspend fun getTotsElsLlibresPerComprar(): List<Llibre>
+    @POST("wishlist/upsert")
+    suspend fun upsertWishlist(@Body dto: WishDto): WishDto
 
-    @POST("wishlist")
-    suspend fun addWishlist(@Body item: WishlistItem): WishlistItem
+    @POST("wishlist/upsertAll")
+    suspend fun upsertWishlistAll(@Body dtos: List<WishDto>): List<WishDto>
 
     @DELETE("wishlist/{id}")
     suspend fun deleteWishlist(@Path("id") id: Long)
 
-    @POST("wishlist/{id}/purchase")
-    suspend fun purchaseWishlist(@Path("id") id: Long): Llibre
+    @POST("wishlist/deleteMany")
+    suspend fun deleteWishlistMany(@Body ids: List<Long>)
 
-
+    @POST("wishlist/purchase/{id}")
+    suspend fun purchaseWishlist(@Path("id") id: Long): LlibreDto
 }

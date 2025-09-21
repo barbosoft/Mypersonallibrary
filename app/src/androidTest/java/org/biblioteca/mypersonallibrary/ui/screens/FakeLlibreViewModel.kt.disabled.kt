@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.StateFlow
 import org.biblioteca.mypersonallibrary.data.Llibre
 import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
 
-class FakeLlibreViewModel(
+class `FakeLlibreViewModel.kt.disabled`(
     llibresInicials: List<Llibre>
 ) : LlibreViewModel() {
 

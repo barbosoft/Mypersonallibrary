@@ -1,164 +1,84 @@
 package org.biblioteca.mypersonallibrary.data.mappers
 
+import org.biblioteca.mypersonallibrary.data.WishlistItem
 import org.biblioteca.mypersonallibrary.data.local.WishlistEntity
 import org.biblioteca.mypersonallibrary.data.remote.dto.WishDto
-import org.biblioteca.mypersonallibrary.data.WishlistItem
-import org.biblioteca.mypersonallibrary.data.remote.dto.LlibreDto
 
-/**
- * Extensions de mapeig entre les 3 capes:
- *  - Entity (Room)  <->  DTO (API)
- *  - Entity (Room)  ->   Domini (WishlistItem)
- *  - Domini (WishlistItem) -> Entity (Room)
- */
 object WishlistMappers {
 
-    /* ---------- Entity -> Domini ---------- */
+    // -------- DTO -> ENTITY --------
+    fun WishDto.toEntity(now: Long): WishlistEntity =
+        WishlistEntity(
+            id          = this.id ?: 0L,
+            titol       = this.titol,
+            autor       = this.autor,
+            isbn        = this.isbn ?: "",
+            imatgeUrl   = this.imatgeUrl,
+            notes       = this.notes,
+            updatedAt   = this.updatedAt ?: now,
+            pendingSync = false,
+            deleted     = false
+        )
+
+    // -------- DOMAIN -> ENTITY --------
+    fun WishlistItem.toEntity(now: Long): WishlistEntity =
+        WishlistEntity(
+            id          = this.id ?: 0L,
+            titol       = this.titol,
+            autor       = this.autor,
+            isbn        = this.isbn ?: "",
+            imatgeUrl   = this.imatgeUrl,
+            notes       = this.notes,
+            updatedAt   = this.updatedAt ?: now,
+            pendingSync = true,   // per defecte quan ho creem des de UI
+            deleted     = false
+        )
+
+    // -------- ENTITY -> DTO (POST/PUT) --------
+    fun WishlistEntity.toDtoForPost(now: Long): WishDto =
+        WishDto(
+            id        = null,   // si és 0/NULL, al servidor es crearà
+            titol     = this.titol,
+            autor     = this.autor,
+            isbn      = this.isbn,
+            imatgeUrl = this.imatgeUrl,
+            notes     = this.notes,
+            updatedAt = now
+        )
+
+    // (opc.) DOMAIN -> DTO (per si uses el repo simple)
+    fun WishlistItem.toDtoForPost(now: Long): WishDto =
+        WishDto(
+            id        = this.id?.takeIf { it > 0L },
+            titol     = this.titol,
+            autor     = this.autor,
+            isbn      = this.isbn,
+            imatgeUrl = this.imatgeUrl,
+            notes     = this.notes,
+            updatedAt = now
+        )
+
+    // -------- ENTITY -> DOMAIN --------
     fun WishlistEntity.toDomain(): WishlistItem =
         WishlistItem(
-            id            = if (id == 0L) null else id,
-            titol         = titol,
-            autor         = autor,
-            isbn          = isbn,
-            sinopsis      = sinopsis,
-            notes         = notes,
-            imatgeUrl     = imatgeUrl,
-            idioma        = idioma,
-            pagines       = pagines,
-            editorial     = editorial,
-            edicio        = edicio,
-            anyPublicacio = anyPublicacio,
-            preuDesitjat  = preuDesitjat,
-            createdAt     = createdAt
+            id        = this.id,
+            titol     = this.titol,
+            autor     = this.autor,
+            isbn      = this.isbn,
+            imatgeUrl = this.imatgeUrl,
+            notes     = this.notes,
+            updatedAt = this.updatedAt
         )
 
-    /* ---------- Domini -> Entity ---------- */
-    fun WishlistItem.toEntity(now: Long = System.currentTimeMillis()): WishlistEntity =
-        WishlistEntity(
-            id            = id ?: 0L,
-            titol         = titol,
-            autor         = autor,
-            isbn          = isbn,
-            sinopsis      = sinopsis,
-            notes         = notes,
-            imatgeUrl     = imatgeUrl,
-            idioma        = idioma,
-            pagines       = pagines,
-            editorial     = editorial,
-            edicio        = edicio,
-            anyPublicacio = anyPublicacio,
-            preuDesitjat  = preuDesitjat,
-            createdAt     = if (createdAt > 0) createdAt else now,
-            updatedAt     = now,
-            pendingSync   = true,   // per defecte: pendent fins que sync() marqui OK
-            deleted       = false
+    // -------- DTO -> DOMAIN --------
+    fun WishDto.toDomain(): WishlistItem =
+        WishlistItem(
+            id        = this.id ?: 0L,
+            titol     = this.titol,
+            autor     = this.autor,
+            isbn      = this.isbn ?: "",
+            imatgeUrl = this.imatgeUrl,
+            notes     = this.notes,
+            updatedAt = this.updatedAt
         )
-
-    // Domini WishlistItem -> DTO
-    fun WishlistItem.toDto(updatedAt: Long = System.currentTimeMillis()): WishDto =
-        WishDto(
-            id = id,
-            titol = titol,
-            autor = autor,
-            isbn = isbn,
-            sinopsis = sinopsis,
-            notes = notes,
-            imatgeUrl = imatgeUrl,
-            idioma = idioma,
-            pagines = pagines,
-            editorial = editorial,
-            edicio = edicio,
-            anyPublicacio = anyPublicacio,
-            preuDesitjat = preuDesitjat,
-            updatedAt = updatedAt,
-            isDeleted = false
-        )
-
-    /* ---------- Entity -> DTO ---------- */
-    fun WishlistEntity.toDto(): WishDto =
-        WishDto(
-            id            = id,
-            titol         = titol,
-            autor         = autor,
-            isbn          = isbn,
-            sinopsis      = sinopsis,
-            notes         = notes,
-            imatgeUrl     = imatgeUrl,
-            idioma        = idioma,
-            pagines       = pagines,
-            editorial     = editorial,
-            edicio        = edicio,
-            anyPublicacio = anyPublicacio,
-            preuDesitjat  = preuDesitjat,
-
-            // si el teu DTO porta created/updatedAt els afegeixes aquí
-            updatedAt = updatedAt,
-            isDeleted = deleted
-        )
-
-    /* ---------- DTO -> Entity ---------- */
-    fun WishDto.toEntity(now: Long = System.currentTimeMillis()): WishlistEntity =
-        WishlistEntity(
-            id            = id ?: 0L,
-            titol         = titol,
-            autor         = autor,
-            isbn          = isbn,
-            sinopsis      = sinopsis,
-            notes         = notes,
-            imatgeUrl     = imatgeUrl,
-            idioma        = idioma,
-            pagines       = pagines,
-            editorial     = editorial,
-            edicio        = edicio,
-            anyPublicacio = anyPublicacio,
-            preuDesitjat  = preuDesitjat,
-            createdAt     = createdAt ?: now, /* si el DTO no en porta, usa now */
-            updatedAt     = updatedAt ?: now,
-            pendingSync   = false,
-            deleted       = isDeleted ?: false
-        )
-
-
-
-    fun LlibreDto.toDomain(): org.biblioteca.mypersonallibrary.data.Llibre =
-        org.biblioteca.mypersonallibrary.data.Llibre(
-            id = id,
-            titol = titol,
-            autor = autor,
-            isbn = isbn,
-            editorial = editorial,
-            edicio = edicio,
-            sinopsis = sinopsis,
-            pagines = pagines,
-            imatgeUrl = imatgeUrl,
-            anyPublicacio = anyPublicacio,
-            idioma = idioma,
-            categoria = categoria,
-            ubicacio = ubicacio,
-            llegit = llegit ?: false,
-            comentari = comentari,
-            puntuacio = puntuacio
-        )
-
-    // Entity -> DTO pensat per POST/PUT (incloent camps de control si els vols enviar)
-    fun WishlistEntity.toDtoForPost(now: Long = System.currentTimeMillis()): WishDto =
-        WishDto(
-            id            = id.takeIf { it != 0L },
-            titol         = titol,
-            autor         = autor,
-            isbn          = isbn,
-            sinopsis      = sinopsis,
-            notes         = notes,
-            imatgeUrl     = imatgeUrl,
-            idioma        = idioma,
-            pagines       = pagines,
-            editorial     = editorial,
-            edicio        = edicio,
-            anyPublicacio = anyPublicacio,
-            preuDesitjat  = preuDesitjat,
-            createdAt     = createdAt,
-            updatedAt     = updatedAt,
-            isDeleted     = deleted
-        )
-
 }

@@ -1,8 +1,16 @@
 package org.biblioteca.mypersonallibrary.data.sync
 
 import android.content.Context
-import androidx.work.*
+import androidx.work.Constraints
+import androidx.work.CoroutineWorker
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequest
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.PeriodicWorkRequest
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkerParameters
 import kotlinx.coroutines.coroutineScope
+import org.biblioteca.mypersonallibrary.data.BibliotecaApi
 import org.biblioteca.mypersonallibrary.data.RetrofitInstance
 import org.biblioteca.mypersonallibrary.data.WishlistRepositoryHybrid
 import org.biblioteca.mypersonallibrary.data.local.AppDatabase
@@ -14,38 +22,50 @@ class WishlistSyncWorker(
 
     override suspend fun doWork(): Result = coroutineScope {
         try {
-            // 1) Obté la BD i el DAO
-            val db  = AppDatabase.get(applicationContext)
-            val dao = db.wishlistDao()
+            // 1) DAOs
+            val db = AppDatabase.get(applicationContext)
+            val wishlistDao = db.wishlistDao()
+            val llibreDao = db.llibreDao()           // <-- FALTAVA
 
-            // 2) Crea l'API de wishlist (pots reutilitzar la teva BASE_URL)
-            val api = RetrofitInstance.wishlistApi(BASE_URL)
+            // 2) API compartida
+            val api: BibliotecaApi = RetrofitInstance.api
 
-            // 3) Repository híbrid amb DAO (+ prefs si el teu constructor els demana)
-            //    Si el constructor només demana (dao, api):
-            val repo = WishlistRepositoryHybrid(dao, api)
+            // 3) Repository híbrid
+            val repo = WishlistRepositoryHybrid(
+                dao = wishlistDao,
+                api = api,
+                prefs = null,
+                llibreDao = llibreDao
+            )
 
-            //    Si el teu constructor també demana SyncPrefs:
-            // val prefs = SyncPrefs(applicationContext)
-            // val repo = WishlistRepositoryHybrid(dao, api, prefs)
-
-            // 4) Sincronitza
+            // 4) Sync
             repo.sync()
 
             Result.success()
-        } catch (t: Throwable) {
+        } catch (_: Throwable) {
             Result.retry()
         }
     }
 
     companion object {
-        const val BASE_URL = "http://192.168.1.145:8080/" // la teva URL
-
+        /** One-shot (per ex. després d’afegir/eliminar un element) */
         fun oneOff(): OneTimeWorkRequest =
-            OneTimeWorkRequestBuilder<WishlistSyncWorker>().build()
+            OneTimeWorkRequestBuilder<WishlistSyncWorker>()
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED) // envia només amb xarxa
+                        .build()
+                )
+                .build()
 
+        /** Periòdic (ex.: cada 6h) */
         fun periodic(): PeriodicWorkRequest =
             PeriodicWorkRequestBuilder<WishlistSyncWorker>(6, java.util.concurrent.TimeUnit.HOURS)
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+                )
                 .build()
     }
 }

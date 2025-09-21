@@ -2,77 +2,89 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "80f40138d54da4711ddc41227372c0ff",
+    "identityHash": "e9040b665e6f0602cd86f004055a4c0f",
     "entities": [
       {
         "tableName": "wishlist",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `titol` TEXT, `autor` TEXT, `isbn` TEXT, `sinopsis` TEXT, `notes` TEXT, `imatgeUrl` TEXT, `idioma` TEXT, `pagines` INTEGER, `editorial` TEXT, `edicio` TEXT, `anyPublicacio` TEXT, `preuDesitjat` REAL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `pendingSync` INTEGER NOT NULL, `deleted` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT, `titol` TEXT, `autor` TEXT, `isbn` TEXT, `sinopsis` TEXT, `notes` TEXT, `imatgeUrl` TEXT, `idioma` TEXT, `pagines` INTEGER, `editorial` TEXT, `edicio` TEXT, `anyPublicacio` TEXT, `preuDesitjat` REAL, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, `pendingSync` INTEGER NOT NULL, `deleted` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
             "columnName": "id",
             "affinity": "INTEGER",
-            "notNull": true
+            "notNull": false
           },
           {
             "fieldPath": "titol",
             "columnName": "titol",
-            "affinity": "TEXT"
+            "affinity": "TEXT",
+            "notNull": false
           },
           {
             "fieldPath": "autor",
             "columnName": "autor",
-            "affinity": "TEXT"
+            "affinity": "TEXT",
+            "notNull": false
           },
           {
             "fieldPath": "isbn",
             "columnName": "isbn",
-            "affinity": "TEXT"
+            "affinity": "TEXT",
+            "notNull": false
           },
           {
             "fieldPath": "sinopsis",
             "columnName": "sinopsis",
-            "affinity": "TEXT"
+            "affinity": "TEXT",
+            "notNull": false
           },
           {
             "fieldPath": "notes",
             "columnName": "notes",
-            "affinity": "TEXT"
+            "affinity": "TEXT",
+            "notNull": false
           },
           {
             "fieldPath": "imatgeUrl",
             "columnName": "imatgeUrl",
-            "affinity": "TEXT"
+            "affinity": "TEXT",
+            "notNull": false
           },
           {
             "fieldPath": "idioma",
             "columnName": "idioma",
-            "affinity": "TEXT"
+            "affinity": "TEXT",
+            "notNull": false
           },
           {
             "fieldPath": "pagines",
             "columnName": "pagines",
-            "affinity": "INTEGER"
+            "affinity": "INTEGER",
+            "notNull": false
           },
           {
             "fieldPath": "editorial",
             "columnName": "editorial",
-            "affinity": "TEXT"
+            "affinity": "TEXT",
+            "notNull": false
           },
           {
             "fieldPath": "edicio",
             "columnName": "edicio",
-            "affinity": "TEXT"
+            "affinity": "TEXT",
+            "notNull": false
           },
           {
             "fieldPath": "anyPublicacio",
             "columnName": "anyPublicacio",
-            "affinity": "TEXT"
+            "affinity": "TEXT",
+            "notNull": false
           },
           {
             "fieldPath": "preuDesitjat",
             "columnName": "preuDesitjat",
-            "affinity": "REAL"
+            "affinity": "REAL",
+            "notNull": false
           },
           {
             "fieldPath": "createdAt",
@@ -104,12 +116,15 @@
           "columnNames": [
             "id"
           ]
-        }
+        },
+        "indices": [],
+        "foreignKeys": []
       }
     ],
+    "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '80f40138d54da4711ddc41227372c0ff')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'e9040b665e6f0602cd86f004055a4c0f')"
     ]
   }
 }

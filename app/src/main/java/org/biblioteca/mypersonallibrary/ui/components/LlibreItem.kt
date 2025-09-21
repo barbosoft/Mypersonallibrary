@@ -19,7 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import org.biblioteca.mypersonallibrary.data.Llibre
-import org.biblioteca.mypersonallibrary.ui.screens.PortadaLlibre // Reutilitzem el que ja tens
+// Reutilitzem el que ja tens
+import org.biblioteca.mypersonallibrary.ui.components.PortadaLlibre
 
 @Composable
 fun LlibreItem(
@@ -38,7 +39,7 @@ fun LlibreItem(
             ) {
                 // 📘 Portada
                 PortadaLlibre(
-                    imageUrl = llibre.imatgeUrl,
+                    imatgeUrl = llibre.imatgeUrl,
                     contentDescription = llibre.titol,
                     modifier = Modifier.size(width = 72.dp, height = 96.dp) // proporció 3:4
                 )

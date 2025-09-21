@@ -18,5 +18,7 @@ data class Llibre(
     // 🔽 Camps nous (opcionales)
     val llegit: Boolean? = null,
     val comentari: String? = null,
-    val puntuacio: Int? = null // 0..5
+    val puntuacio: Int? = null, // 0..5
+
+    val updatedAt: Long = System.currentTimeMillis()
 )

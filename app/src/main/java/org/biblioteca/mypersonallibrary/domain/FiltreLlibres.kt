@@ -30,5 +30,7 @@ fun ordenaLlibres(llibres: List<Llibre>, ordre: Ordre): List<Llibre> =
         Ordre.TITOL -> llibres.sortedBy { it.titol?.lowercase() ?: "" }
         Ordre.AUTOR -> llibres.sortedBy { it.autor?.lowercase() ?: "" }
         Ordre.ISBN -> llibres.sortedBy { it.isbn ?: "" }
-        Ordre.RECENT -> TODO()
+        //Ordre.RECENT -> TODO()
+        //Ordre.RECENT -> llibres.sortedByDescending { it.id ?: Long.MIN_VALUE }
+        Ordre.RECENT -> llibres.sortedByDescending { it.updatedAt ?: 0L }
     }

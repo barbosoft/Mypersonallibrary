@@ -6,6 +6,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
@@ -13,8 +14,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -23,11 +24,10 @@ import androidx.navigation.compose.rememberNavController
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.WorkManager
 import org.biblioteca.mypersonallibrary.data.Llibre
-import org.biblioteca.mypersonallibrary.data.RetrofitInstance          // 👈 AFEGIT
-import org.biblioteca.mypersonallibrary.data.WishlistRepositoryHybrid  // 👈 AFEGIT
-import org.biblioteca.mypersonallibrary.data.local.AppDatabase         // 👈 AFEGIT
+import org.biblioteca.mypersonallibrary.data.RetrofitInstance
+import org.biblioteca.mypersonallibrary.data.WishlistRepositoryHybrid
+import org.biblioteca.mypersonallibrary.data.local.AppDatabase
 import org.biblioteca.mypersonallibrary.data.sync.WishlistSyncWorker
-// import org.biblioteca.mypersonallibrary.data.sync.SyncPrefs        // (opcional)
 import org.biblioteca.mypersonallibrary.navigation.Screen
 import org.biblioteca.mypersonallibrary.scanner.ScanActivity
 import org.biblioteca.mypersonallibrary.ui.components.BusyOverlay
@@ -38,13 +38,17 @@ import org.biblioteca.mypersonallibrary.ui.screens.LlibreFormScreen
 import org.biblioteca.mypersonallibrary.ui.screens.LlibreListScreen
 import org.biblioteca.mypersonallibrary.ui.screens.WishlistScreen
 import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
+import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModelFactory
 import org.biblioteca.mypersonallibrary.viewModel.WishlistViewModel
-import org.biblioteca.mypersonallibrary.viewModel.WishlistViewModelFactory // 👈 AFEGIT
+import org.biblioteca.mypersonallibrary.viewModel.WishlistViewModelFactory
 
 class MainActivity : ComponentActivity() {
 
-    private lateinit var vm: LlibreViewModel
-    private lateinit var wishlistVM: WishlistViewModel
+    // ⬇️ Un ÚNIC LlibreViewModel a nivell d’Activity (amb la seva Factory)
+    private val llibreVM: LlibreViewModel by viewModels {
+        LlibreViewModelFactory(applicationContext)
+    }
+
     private var navController: NavHostController? = null
 
     private val scanLauncher = registerForActivityResult(
@@ -53,8 +57,9 @@ class MainActivity : ComponentActivity() {
         if (result.resultCode == Activity.RESULT_OK) {
             val text = result.data?.getStringExtra(ScanActivity.EXTRA_SCAN_RESULT)
             if (!text.isNullOrBlank()) {
-                vm.prepararNouLlibreAmbIsbn(text)
-                vm.enriquirLlibrePerIsbn()
+                // ⬇️ Fem servir el ViewModel d’Activity (sempre inicialitzat)
+                llibreVM.prepararNouLlibreAmbIsbn(text)
+                llibreVM.enriquirLlibrePerIsbn()
                 navController?.navigate(Screen.LlibreForm.route) {
                     launchSingleTop = true
                 }
@@ -68,23 +73,21 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        WindowCompat.setDecorFitsSystemWindows(window, false)
 
         setContent {
-            // ------ ViewModels ------
-            vm = viewModel()
+            // Fem servir el mateix LlibreVM d’Activity a la UI
+            val vm = llibreVM
 
-            // ✅ Crea DB → API → Repo → Factory → WishlistViewModel
-            val db = AppDatabase.get(applicationContext)
-            val api = RetrofitInstance.wishlistApi()               // ← API Retrofit per a wishlist
-            // val prefs = SyncPrefs(applicationContext)            // (opcional)
+            // ✅ Crea (o obté) DB/API/Repo una vegada per composició
+            //val db by remember { mutableStateOf(AppDatabase.get(applicationContext)) }
+            val db = remember { AppDatabase.get(applicationContext) }
+            val api = RetrofitInstance.api
 
-            val wishlistRepo = WishlistRepositoryHybrid(
-                dao = db.wishlistDao(),
-                api = api
-                // , prefs = prefs
-            )
-            wishlistVM = viewModel(factory = WishlistViewModelFactory(wishlistRepo))
+            val wishlistRepo = remember { WishlistRepositoryHybrid(dao = db.wishlistDao(), api = api, llibreDao = db.llibreDao()) }
+
+            // Wishlist VM només per a la UI (no cal guardar-lo com a camp d’Activity)
+            val wishlistVM: WishlistViewModel =
+                viewModel(factory = WishlistViewModelFactory(wishlistRepo))
 
             val nav = rememberNavController()
             navController = nav
@@ -99,18 +102,12 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // ------------------------------------------------------------------
-        // 🔄 Registra el Worker de sincronització de la Wishlist
-        //    - Periodic: s'executa cada X hores (definit a WishlistSyncWorker.periodic())
-        //    - Unique + KEEP evita duplicats si l’Activity es recrea
-        // ------------------------------------------------------------------
+        // 🔄 Workers de sincronització (fora de Compose)
         WorkManager.getInstance(applicationContext).enqueueUniquePeriodicWork(
             "wishlist_sync_periodic",
             ExistingPeriodicWorkPolicy.KEEP,
             WishlistSyncWorker.periodic()
         )
-
-        // (Opcional) Llança una sincronització immediata a l’arrencada
         WorkManager.getInstance(applicationContext)
             .enqueue(WishlistSyncWorker.oneOff())
     }
@@ -121,10 +118,8 @@ private fun AppNavHost(
     nav: NavHostController,
     vm: LlibreViewModel,
     wishlistVM: WishlistViewModel,
-
     obrirEscaner: () -> Unit
 ) {
-    // Overlay global “intel·ligent”
     val rawBusy by vm.busy.collectAsState()
     val busy by rememberSmartBusy(rawBusy, showDelayMs = 0, minShowMs = 600)
 
@@ -148,9 +143,7 @@ private fun AppNavHost(
                         vm.startNav()
                         nav.navigate(Screen.LlibreForm.route)
                     },
-                    onOpenWishList = {                      // 👈 botó del carro
-                        nav.navigate(Screen.Wishlist.route)
-                    }
+                    onOpenWishList = { nav.navigate(Screen.Wishlist.route) }
                 )
             }
 
@@ -158,7 +151,7 @@ private fun AppNavHost(
                 LaunchedEffect(Unit) { vm.endNav() }
                 LlibreFormScreen(
                     viewModel = vm,
-                    wishlistVM = wishlistVM,               // 👈 FALTAVA aquest paràmetre
+                    wishlistVM = wishlistVM,
                     onSave = {
                         vm.startNav()
                         nav.popBackStack()
@@ -182,7 +175,6 @@ private fun AppNavHost(
                 )
             }
 
-
             composable(Screen.Wishlist.route) {
                 LaunchedEffect(Unit) { vm.endNav() }
                 WishlistScreen(
@@ -196,4 +188,3 @@ private fun AppNavHost(
         BusyOverlay(show = busy)
     }
 }
-
