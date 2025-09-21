@@ -10,7 +10,11 @@ import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
@@ -33,7 +37,10 @@ import org.biblioteca.mypersonallibrary.ui.screens.LlibreEditScreen
 import org.biblioteca.mypersonallibrary.ui.screens.LlibreFormScreen
 import org.biblioteca.mypersonallibrary.ui.screens.LlibreListScreen
 import org.biblioteca.mypersonallibrary.ui.screens.WishlistScreen
-import org.biblioteca.mypersonallibrary.viewModel.*
+import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModel
+import org.biblioteca.mypersonallibrary.viewModel.LlibreViewModelFactory
+import org.biblioteca.mypersonallibrary.viewModel.WishlistViewModel
+import org.biblioteca.mypersonallibrary.viewModel.WishlistViewModelFactory
 
 class MainActivity : ComponentActivity() {
 
@@ -177,10 +184,6 @@ private fun AppNavHost(
                 )
             }
         }
-
-        BusyOverlay(show = busy)
-    }
-}
 
         BusyOverlay(show = busy)
     }

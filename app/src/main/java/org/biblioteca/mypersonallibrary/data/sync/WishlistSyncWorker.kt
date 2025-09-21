@@ -1,7 +1,14 @@
 package org.biblioteca.mypersonallibrary.data.sync
 
 import android.content.Context
-import androidx.work.*
+import androidx.work.Constraints
+import androidx.work.CoroutineWorker
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequest
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.PeriodicWorkRequest
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkerParameters
 import kotlinx.coroutines.coroutineScope
 import org.biblioteca.mypersonallibrary.data.BibliotecaApi
 import org.biblioteca.mypersonallibrary.data.RetrofitInstance

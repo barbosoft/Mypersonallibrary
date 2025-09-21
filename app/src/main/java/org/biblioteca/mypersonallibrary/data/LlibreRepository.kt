@@ -5,17 +5,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import org.biblioteca.mypersonallibrary.data.local.LlibreDao
-import org.biblioteca.mypersonallibrary.data.local.LlibreEntity
-import org.biblioteca.mypersonallibrary.data.remote.dto.LlibreDto
 import org.biblioteca.mypersonallibrary.data.mappers.toDomain
 import org.biblioteca.mypersonallibrary.data.mappers.toDto
 import org.biblioteca.mypersonallibrary.data.mappers.toEntity
-//import org.biblioteca.mypersonallibrary.data.remote.dto.toDomain
-//import org.biblioteca.mypersonallibrary.data.remote.dto.toDto
-import org.biblioteca.mypersonallibrary.data.local.toEntity
-//import org.biblioteca.mypersonallibrary.data.local.toDomain
-//import org.biblioteca.mypersonallibrary.data.remote.dto.LlibreDto
-import org.biblioteca.mypersonallibrary.data.remote.dto.toEntity
+import org.biblioteca.mypersonallibrary.data.remote.dto.LlibreDto
 import retrofit2.HttpException
 import java.io.IOException
 

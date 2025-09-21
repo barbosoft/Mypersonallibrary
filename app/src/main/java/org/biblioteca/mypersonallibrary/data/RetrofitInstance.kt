@@ -6,7 +6,6 @@ import com.google.gson.GsonBuilder
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.biblioteca.mypersonallibrary.BuildConfig
-import org.biblioteca.mypersonallibrary.data.remote.WishlistApi
 import org.json.JSONArray
 import org.json.JSONObject
 import retrofit2.Retrofit
