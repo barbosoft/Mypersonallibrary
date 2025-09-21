@@ -81,6 +81,10 @@ fun LlibreListScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.refreshAll() // si falla la xarxa, no esborra res
+    }
+
     Scaffold(
 topBar = {
             CenterAlignedTopAppBar(

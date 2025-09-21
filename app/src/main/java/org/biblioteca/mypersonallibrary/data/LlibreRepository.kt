@@ -31,7 +31,7 @@ class LlibreRepository(
     suspend fun deleteLocal(id: Long) = withContext(Dispatchers.IO) {
         dao.deleteById(id)
     }
-
+/*
     suspend fun refreshAll() = withContext(Dispatchers.IO) {
         // Si el teu endpoint retorna Llibre (no DTO), adapta el mapping
         val remote: List<LlibreDto> = runCatching { api.getTotsElsLlibres() }
@@ -41,6 +41,19 @@ class LlibreRepository(
         val entities = remote.map { it.toEntity(now) }
         dao.replaceAll(entities)
     }
+
+ */
+suspend fun refreshAll() = withContext(Dispatchers.IO) {
+    try {
+        val remote: List<LlibreDto> = api.getTotsElsLlibres()   // si falla, passa al catch
+        val now = System.currentTimeMillis()
+        val entities = remote.map { it.toEntity(now) }
+        dao.replaceAll(entities)  // reflecteix l’estat del servidor (fins i tot si és buit)
+    } catch (_: Exception) {
+        // 🔒 Offline o error del backend: NO toquem Room.
+        // Així la llista principal continua mostrant el que ja tenies guardat.
+    }
+}
 
     fun observeLibraryIsbns(): Flow<Set<String>> =
     dao.observeIsbns().map { it.filterNotNull().map { s ->

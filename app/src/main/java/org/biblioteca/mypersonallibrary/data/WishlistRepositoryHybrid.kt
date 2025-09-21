@@ -128,34 +128,51 @@ class WishlistRepositoryHybrid(
         val now = System.currentTimeMillis()
         val pending = dao.getPendingSync()
 
-        if (pending.isNotEmpty()) {
-            val toUpsert     = pending.filter { !it.deleted }
-            val toDeleteIds  = pending.filter { it.deleted }.mapNotNull { it.id }
+        // ---- PUSH ----
+        val toUpsert    = pending.filter { !it.deleted }
+        val toDeleteIds = pending.filter { it.deleted }.mapNotNull { it.id }
 
-            // UPsert batch (si el teu backend ho suporta)
-            if (toUpsert.isNotEmpty()) {
-                val posted = runCatching {
-                    api.upsertWishlistAll(toUpsert.map { it.toDtoForPost(now) })
-                }.getOrElse { emptyList() }
+        val syncedIds = mutableListOf<Long>()
 
+        // UPsert en batch: si falla NO toquem flags locals
+        if (toUpsert.isNotEmpty()) {
+            runCatching {
+                val posted = api.upsertWishlistAll(toUpsert.map { it.toDtoForPost(now) })
                 val synced = posted.map { it.toEntity(now).copy(pendingSync = false, deleted = false) }
-                if (synced.isNotEmpty()) dao.upsertAll(synced)
+                if (synced.isNotEmpty()) {
+                    dao.upsertAll(synced)
+                    // Marquem com sincronitzats únicament els que hem intentat pujar
+                    syncedIds += toUpsert.mapNotNull { it.id }
+                }
+            }.onFailure {
+                // Offline / error: mantenim pendingSync=true perquè el Worker ho reintenti
             }
-
-            // DELETE batch (ignora errors — ho reintentarà més tard)
-            if (toDeleteIds.isNotEmpty()) {
-                runCatching { api.deleteWishlistMany(toDeleteIds) }
-            }
-
-            // Marca com sincronitzats (els que hem intentat)
-            dao.markSynced(pending.mapNotNull { it.id })
         }
 
-        // PULL final per assegurar consistència
-        val remote = runCatching { api.getWishlist() }
-        remote.onSuccess { list ->
-            val now = System.currentTimeMillis()
-            dao.replaceAll(list.map { it.toEntity(now) })
+        // DELETE en batch: només marquem si la crida té èxit
+        if (toDeleteIds.isNotEmpty()) {
+            runCatching {
+                api.deleteWishlistMany(toDeleteIds)
+                syncedIds += toDeleteIds
+            }.onFailure {
+                // Res: es mantindran com pending i es reintentarà
+            }
+        }
+
+        if (syncedIds.isNotEmpty()) {
+            dao.markSynced(syncedIds)
+        }
+
+        // ---- PULL ----
+        // Només fem replaceAll si el GET té èxit. Si falla, NO toquem Room.
+        try {
+            val remote = api.getWishlist()
+            val fresh = remote.map { it.toEntity(now).copy(pendingSync = false) }
+            dao.replaceAll(fresh)       // assegura consistència amb el servidor
+            dao.deleteWithIdZero()      // higiene per si mai quedés algun id=0 residual
+        } catch (_: Throwable) {
+            // Offline/500: manté la còpia local perquè la UI segueixi mostrant dades
         }
     }
+
 }
